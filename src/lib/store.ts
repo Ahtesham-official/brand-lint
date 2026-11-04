@@ -500,3 +500,4 @@ class BrandLintStore {
 }
 
 export const store = new BrandLintStore();
+

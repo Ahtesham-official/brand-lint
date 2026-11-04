@@ -228,3 +228,4 @@ export const DEMO_SUBMISSION_INITIAL = {
   image_url: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80',
   ocr_text: "INDIA'S #1 SOUND\nNOW WITH 24-MONTH WARRANTY\nUNBEATABLE BASS",
 };
+

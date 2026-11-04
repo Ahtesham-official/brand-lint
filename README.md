@@ -127,3 +127,4 @@ npm start
 | `POST` | `/api/issues/[id]/apply-fix` | Apply one-click fix suggestion |
 | `POST` | `/api/submissions/[id]/review` | Reviewer decision (approve/request changes) |
 | `GET` | `/api/audit-logs` | Minimal event log trail |
+

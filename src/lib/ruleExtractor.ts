@@ -216,3 +216,4 @@ Rules must be atomic — one constraint per rule. Do not invent rules not presen
   // Heuristic extraction fallback (fast, deterministic, < 25s, PRD-compliant)
   return extractRulesHeuristically(text, guidelineId);
 }
+
