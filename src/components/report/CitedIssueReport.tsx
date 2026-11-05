@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
-import { Submission, Issue, Severity, Brand, User } from '@/types';
-import * as Diff from 'diff';
-import { 
-  ShieldAlert, AlertTriangle, CheckCircle2, Sparkles, ChevronDown, 
-  ChevronUp, ArrowLeft, Wand2, Check, ExternalLink, Image as ImageIcon, 
-  Eye, RefreshCw, MessageSquare
+import React, { useState, useMemo } from 'react';
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  CheckCircle2,
+  X,
+  Wrench,
+  Quote,
 } from 'lucide-react';
+import type { Submission, Issue, Brand, User, Severity } from '@/types';
 
 interface CitedIssueReportProps {
   submission: Submission;
@@ -15,10 +19,312 @@ interface CitedIssueReportProps {
   onApplyFix: (issueId: string, updatedCaption: string) => void;
   onBack: () => void;
   onSubmitForReview: () => void;
-  onOpenReviewModal?: () => void;
+  onSubmitReview: (
+    submissionId: string,
+    decision: 'approve' | 'request_changes',
+    comment: string
+  ) => void;
 }
 
-export const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+const severityDot: Record<Severity, string> = {
+  high: 'bg-red-500',
+  med: 'bg-amber-500',
+  low: 'bg-green-500',
+};
+
+const severityBg: Record<Severity, string> = {
+  high: 'bg-red-50 text-red-700',
+  med: 'bg-amber-50 text-amber-700',
+  low: 'bg-green-50 text-green-700',
+};
+
+const riskBg = (score: number): string => {
+  if (score > 75) return 'bg-red-600 text-white';
+  if (score > 50) return 'bg-amber-500 text-white';
+  if (score > 25) return 'bg-amber-400 text-slate-900';
+  return 'bg-green-500 text-white';
+};
+
+const categoryLabel = (cat: string): string =>
+  cat
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+/* Build highlighted caption: marks matched text spans */
+const buildHighlightedCaption = (
+  caption: string,
+  issues: Issue[]
+): React.ReactNode[] => {
+  // Collect all spans from open issues
+  const spans: { start: number; end: number; severity: Severity; text: string }[] = [];
+  issues.forEach((issue) => {
+    if (issue.status === 'open') {
+      let start = issue.evidence.span?.start;
+      let end = issue.evidence.span?.end;
+
+      if ((start === undefined || end === undefined) && issue.evidence.matched_text) {
+        const idx = caption.toLowerCase().indexOf(issue.evidence.matched_text.toLowerCase());
+        if (idx !== -1) {
+          start = idx;
+          end = idx + issue.evidence.matched_text.length;
+        }
+      }
+
+      if (start !== undefined && end !== undefined && start >= 0 && end <= caption.length && start < end) {
+        spans.push({
+          start,
+          end,
+          severity: issue.severity,
+          text: caption.slice(start, end),
+        });
+      }
+    }
+  });
+
+  if (spans.length === 0) return [caption];
+
+  // Sort by start
+  spans.sort((a, b) => a.start - b.start);
+
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  spans.forEach((span, i) => {
+    if (span.start < cursor) return; // avoid overlapping issues
+
+    if (span.start > cursor) {
+      parts.push(caption.slice(cursor, span.start));
+    }
+    const bg =
+      span.severity === 'high'
+        ? 'bg-red-100 text-red-900 border-b border-red-400 font-medium rounded px-1'
+        : 'bg-amber-100 text-amber-900 border-b border-amber-400 font-medium rounded px-1';
+    parts.push(
+      <mark key={i} className={bg} title={`Violation: ${span.text}`}>
+        {caption.slice(span.start, span.end)}
+      </mark>
+    );
+    cursor = span.end;
+  });
+
+  if (cursor < caption.length) {
+    parts.push(caption.slice(cursor));
+  }
+
+  return parts;
+};
+
+/* ------------------------------------------------------------------ */
+/*  Sub-components                                                     */
+/* ------------------------------------------------------------------ */
+
+const IssueCard: React.FC<{
+  issue: Issue;
+  caption: string;
+  onApplyFix: (issueId: string, updatedCaption: string) => void;
+}> = ({ issue, caption, onApplyFix }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [showFixModal, setShowFixModal] = useState(false);
+  const isFixed = issue.status === 'fixed';
+
+  const handleAcceptFix = () => {
+    if (!issue.suggested_text) return;
+    // If suggested_text already contains the full rewritten copy
+    const isFullText = issue.suggested_text.length > 40 && issue.suggested_text.includes(' ');
+    const updated = isFullText
+      ? issue.suggested_text
+      : (issue.evidence.matched_text ? caption.replace(issue.evidence.matched_text, issue.suggested_text) : issue.suggested_text);
+    onApplyFix(issue.id, updated);
+    setShowFixModal(false);
+  };
+
+  return (
+    <>
+      <div
+        className={`border border-slate-200 rounded-lg transition-colors ${
+          isFixed ? 'opacity-50' : ''
+        }`}
+      >
+        {/* Collapsed row */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full text-left px-3 py-2.5 flex items-center gap-2"
+        >
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${severityDot[issue.severity]}`}
+          />
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded ${severityBg[issue.severity]} flex-shrink-0`}
+          >
+            {categoryLabel(issue.category)}
+          </span>
+          <span
+            className={`text-sm flex-1 truncate ${
+              isFixed ? 'line-through text-slate-400' : 'text-slate-800'
+            }`}
+          >
+            {issue.rule_title || categoryLabel(issue.category)}
+          </span>
+          <span className="text-xs text-slate-400 flex-shrink-0">
+            {Math.round(issue.confidence * 100)}%
+          </span>
+          {issue.suggested_text && !isFixed && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFixModal(true);
+              }}
+              className="text-xs px-2 py-0.5 text-blue-600 border border-blue-200 rounded hover:bg-blue-50 flex-shrink-0"
+            >
+              Apply Fix
+            </button>
+          )}
+          {expanded ? (
+            <ChevronUp className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          )}
+        </button>
+
+        {/* Expanded detail */}
+        {expanded && (
+          <div className="px-3 pb-3 space-y-3 border-t border-slate-100">
+            {/* Explanation */}
+            <p className="text-sm text-slate-700 mt-2">{issue.explanation}</p>
+
+            {/* Source citation */}
+            {issue.source_citation && (
+              <blockquote className="flex items-start gap-2 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2 border-l-2 border-slate-300">
+                <Quote className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+                <span className="italic">{issue.source_citation}</span>
+              </blockquote>
+            )}
+
+            {/* Evidence details */}
+            {(issue.evidence.matched_text ||
+              issue.evidence.detected_color ||
+              issue.evidence.contrast_ratio !== undefined ||
+              issue.evidence.conflicting_fact) && (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {issue.evidence.matched_text && (
+                  <div className="bg-slate-50 rounded px-2 py-1.5">
+                    <span className="text-slate-400 block mb-0.5">Matched Text</span>
+                    <span className="text-slate-700 font-mono">
+                      "{issue.evidence.matched_text}"
+                    </span>
+                  </div>
+                )}
+                {issue.evidence.detected_color && (
+                  <div className="bg-slate-50 rounded px-2 py-1.5">
+                    <span className="text-slate-400 block mb-0.5">Detected Color</span>
+                    <span className="flex items-center gap-1.5 text-slate-700">
+                      <span
+                        className="w-3 h-3 rounded border border-slate-200"
+                        style={{ backgroundColor: issue.evidence.detected_color }}
+                      />
+                      {issue.evidence.detected_color}
+                    </span>
+                  </div>
+                )}
+                {issue.evidence.contrast_ratio !== undefined && (
+                  <div className="bg-slate-50 rounded px-2 py-1.5">
+                    <span className="text-slate-400 block mb-0.5">Contrast Ratio</span>
+                    <span className="text-slate-700">
+                      {issue.evidence.contrast_ratio}:1
+                      {issue.evidence.required_contrast &&
+                        ` (required ${issue.evidence.required_contrast}:1)`}
+                    </span>
+                  </div>
+                )}
+                {issue.evidence.conflicting_fact && (
+                  <div className="bg-slate-50 rounded px-2 py-1.5">
+                    <span className="text-slate-400 block mb-0.5">Conflicting Fact</span>
+                    <span className="text-slate-700">
+                      {issue.evidence.conflicting_fact}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Suggestion */}
+            {issue.suggestion && (
+              <div className="flex items-start gap-2 text-xs bg-blue-50 rounded-lg px-3 py-2">
+                <Wrench className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500" />
+                <span className="text-blue-800">{issue.suggestion}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Fix modal */}
+      {showFixModal && issue.suggested_text && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-slate-800">Suggested Fix</h3>
+              <button
+                onClick={() => setShowFixModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Current Issue</p>
+                <p className="text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                  {issue.explanation}
+                </p>
+              </div>
+              {issue.evidence.matched_text && (
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">Flagged Text</p>
+                  <p className="text-xs bg-red-50 rounded-lg px-3 py-2 text-red-700 font-mono line-through">
+                    {issue.evidence.matched_text}
+                  </p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Updated Copy</p>
+                <p className="text-xs bg-emerald-50 rounded-lg px-3 py-2 text-emerald-800 font-sans leading-relaxed">
+                  {issue.suggested_text}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowFixModal(false)}
+                className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAcceptFix}
+                className="px-3 py-1.5 text-xs text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Accept Fix & Mutate Copy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+/* ------------------------------------------------------------------ */
+/*  Main Component                                                     */
+/* ------------------------------------------------------------------ */
+
+const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
   submission,
   issues,
   brand,
@@ -26,513 +332,247 @@ export const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
   onApplyFix,
   onBack,
   onSubmitForReview,
-  onOpenReviewModal,
+  onSubmitReview,
 }) => {
-  const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
-  const [expandedIssues, setExpandedIssues] = useState<Record<string, boolean>>({
-    [issues[0]?.id || '']: true, // First issue expanded by default
-  });
-  const [activeFixIssue, setActiveFixIssue] = useState<Issue | null>(null);
-  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | Severity>('all');
+  const [reviewComment, setReviewComment] = useState('');
 
-  const toggleExpand = (id: string) => {
-    setExpandedIssues((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
+  const openIssues = useMemo(
+    () => issues.filter((i) => i.status === 'open'),
+    [issues]
+  );
 
-  const filteredIssues = selectedSeverity === 'all'
-    ? issues
-    : issues.filter((i) => i.severity === selectedSeverity);
+  const countBySeverity = useMemo(() => {
+    const counts = { high: 0, med: 0, low: 0 };
+    openIssues.forEach((i) => counts[i.severity]++);
+    return counts;
+  }, [openIssues]);
 
-  const openIssues = issues.filter((i) => i.status === 'open');
-  const fixedIssues = issues.filter((i) => i.status === 'fixed');
+  const filteredIssues = useMemo(
+    () =>
+      filter === 'all'
+        ? issues
+        : issues.filter((i) => i.severity === filter),
+    [issues, filter]
+  );
 
-  const riskScore = submission.risk_score;
-  const isCritical = riskScore > 75;
-  const isHigh = riskScore > 50 && riskScore <= 75;
-  const isModerate = riskScore > 25 && riskScore <= 50;
+  const isReviewer = currentUser.role === 'reviewer';
+  const isCreator = currentUser.role === 'creator';
 
-  // Interactive Text Highlighting with linked spans
-  const renderInteractiveCaption = () => {
-    const text = submission.caption;
-    // Known violation phrases to highlight
-    const highlights = [
-      { text: "India's #1", type: 'high', label: 'Banned Superlative' },
-      { text: "24-month warranty", type: 'high', label: 'Fact Contradiction' },
-      { text: "Unleash the sound!", type: 'med', label: 'Tone Hype' },
-      { text: "#unbeatable", type: 'high', label: 'Banned Word' },
-      { text: "Grab yours before midnight!", type: 'med', label: 'Urgency Pressure' },
-    ];
-
-    // Simple robust tokenizer for highlighting
-    let result: React.ReactNode[] = [];
-    let lastIndex = 0;
-
-    // Find occurrences
-    const matches: { start: number; end: number; item: typeof highlights[0] }[] = [];
-    highlights.forEach((h) => {
-      const idx = text.indexOf(h.text);
-      if (idx !== -1) {
-        matches.push({ start: idx, end: idx + h.text.length, item: h });
-      }
-    });
-
-    matches.sort((a, b) => a.start - b.start);
-
-    matches.forEach((m, i) => {
-      if (m.start > lastIndex) {
-        result.push(text.substring(lastIndex, m.start));
-      }
-
-      const isHighSev = m.item.type === 'high';
-      const isSelected = activeHighlightId === m.item.text;
-
-      result.push(
-        <mark
-          key={`hl-${i}`}
-          onClick={() => setActiveHighlightId(m.item.text)}
-          className={`cursor-pointer px-1 py-0.5 rounded transition-all font-semibold ${
-            isSelected
-              ? 'ring-2 ring-indigo-600 bg-yellow-200'
-              : isHighSev
-              ? 'bg-rose-100 text-rose-900 border-b-2 border-rose-500 hover:bg-rose-200'
-              : 'bg-amber-100 text-amber-900 border-b-2 border-amber-500 hover:bg-amber-200'
-          }`}
-          title={`Violation: ${m.item.label} (Click to inspect)`}
-        >
-          {text.substring(m.start, m.end)}
-        </mark>
-      );
-      lastIndex = m.end;
-    });
-
-    if (lastIndex < text.length) {
-      result.push(text.substring(lastIndex));
-    }
-
-    return result;
-  };
-
-  const handleAcceptFix = (issue: Issue) => {
-    if (!issue.suggested_text) return;
-    onApplyFix(issue.id, issue.suggested_text);
-    setActiveFixIssue(null);
-  };
+  const filters: { label: string; value: 'all' | Severity }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'med' },
+    { label: 'Low', value: 'low' },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Back button & Title Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-6xl mx-auto py-6 px-4">
+      {/* Top section */}
+      <div className="mb-6">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+          className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 mb-4"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Submissions</span>
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Back
         </button>
 
-        <div className="flex items-center gap-3">
-          {currentUser.role === 'reviewer' ? (
-            <button
-              onClick={onOpenReviewModal}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
-            >
-              <Eye className="w-4 h-4" />
-              <span>Reviewer Decision (Approve / Request Changes)</span>
-            </button>
-          ) : (
-            <button
-              onClick={onSubmitForReview}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all"
-            >
-              <Check className="w-4 h-4" />
-              <span>Submit for Brand Review</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* OVERALL BRAND RISK SCORE BANNER (FR-9.4) */}
-      <div
-        className={`rounded-2xl border p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 ${
-          isCritical
-            ? 'bg-rose-50/60 border-rose-200'
-            : isHigh
-            ? 'bg-amber-50/60 border-amber-200'
-            : 'bg-emerald-50/60 border-emerald-200'
-        }`}
-      >
-        <div className="flex items-center gap-5">
-          {/* Circular / Gauge Risk Indicator */}
+        <div className="flex items-start gap-4">
+          {/* Risk score */}
           <div
-            className={`w-20 h-20 rounded-2xl flex flex-col items-center justify-center font-extrabold shadow-sm ${
-              isCritical
-                ? 'bg-rose-600 text-white shadow-rose-500/20'
-                : isHigh
-                ? 'bg-amber-500 text-white shadow-amber-500/20'
-                : 'bg-emerald-600 text-white shadow-emerald-500/20'
-            }`}
+            className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 ${riskBg(submission.risk_score)}`}
           >
-            <span className="text-2xl leading-none">{riskScore}</span>
-            <span className="text-[10px] uppercase font-bold tracking-wider opacity-90 mt-0.5">/ 100</span>
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                  isCritical
-                    ? 'bg-rose-200 text-rose-900'
-                    : isHigh
-                    ? 'bg-amber-200 text-amber-900'
-                    : 'bg-emerald-200 text-emerald-900'
-                }`}
-              >
-                {submission.risk_level || 'Critical'} Brand Risk
-              </span>
-              <span className="text-xs text-slate-500">
-                Formula: Weighted Severity × Confidence Aggregate
-              </span>
-            </div>
-
-            <h2 className="text-xl font-extrabold text-slate-900 mt-1">
-              Cited Issue Report: {submission.title}
-            </h2>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Found <strong>{openIssues.length} open issues</strong> requiring attention. 
-              {fixedIssues.length > 0 && ` (${fixedIssues.length} fixed)`}
-            </p>
-          </div>
-        </div>
-
-        {/* Severity Count Pills */}
-        <div className="flex items-center gap-3">
-          <div className="px-3.5 py-2 rounded-xl bg-white/80 border border-slate-200 text-center shadow-sm">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">High Risk</div>
-            <div className="text-lg font-bold text-rose-600">
-              {issues.filter((i) => i.severity === 'high' && i.status === 'open').length}
-            </div>
-          </div>
-
-          <div className="px-3.5 py-2 rounded-xl bg-white/80 border border-slate-200 text-center shadow-sm">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Medium</div>
-            <div className="text-lg font-bold text-amber-600">
-              {issues.filter((i) => i.severity === 'med' && i.status === 'open').length}
-            </div>
-          </div>
-
-          <div className="px-3.5 py-2 rounded-xl bg-white/80 border border-slate-200 text-center shadow-sm">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Auto-Fixable</div>
-            <div className="text-lg font-bold text-indigo-600">
-              {issues.filter((i) => i.suggested_text && i.status === 'open').length}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid: Submission Content on Left, Cited Issues on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Interactive Submission Viewer */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm">Submitted Copy & Poster</h3>
-              <span className="text-[11px] text-slate-400">Click highlighted text to inspect</span>
-            </div>
-
-            {/* Interactive Caption View */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Caption Copy (Interactive Provenance)
-              </label>
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-sm leading-relaxed text-slate-800 font-sans">
-                {renderInteractiveCaption()}
-              </div>
-            </div>
-
-            {/* Poster Graphic Inspection View */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Poster Graphic & Visual Check Overlays
-              </label>
-              <div className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900 shadow-inner group">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={submission.image_url}
-                  alt="Poster asset"
-                  className="w-full h-64 object-cover"
-                />
-
-                {/* Overlaid Visual Diagnostics Badges */}
-                <div className="absolute top-2 left-2 flex flex-col gap-1.5">
-                  <div className="px-2 py-1 rounded bg-black/85 backdrop-blur text-white text-[11px] font-mono flex items-center gap-1.5 border border-white/10 shadow">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#E11D48]" />
-                    <span>Dominant: #E11D48 (Off-brand)</span>
-                  </div>
-
-                  <div className="px-2 py-1 rounded bg-black/85 backdrop-blur text-amber-300 text-[11px] font-mono flex items-center gap-1.5 border border-white/10 shadow">
-                    <AlertTriangle className="w-3 h-3 text-amber-400" />
-                    <span>WCAG: 2.8:1 (Needs 4.5:1)</span>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-2 right-2 px-2 py-1 rounded bg-indigo-900/90 text-white text-[10px] font-mono">
-                  OCR: Provenance Verified
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Cited Issues List */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Filter Bar */}
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">Filter by Severity:</span>
-              <div className="flex items-center gap-1">
-                {['all', 'high', 'med', 'low'].map((sev) => (
-                  <button
-                    key={sev}
-                    onClick={() => setSelectedSeverity(sev)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium uppercase tracking-wider transition-all ${
-                      selectedSeverity === sev
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {sev}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <span className="text-xs text-slate-400">
-              Showing {filteredIssues.length} of {issues.length} cited flags
+            <span className="text-lg font-bold leading-none">
+              {submission.risk_score}
             </span>
           </div>
 
-          {/* Issues Accordion Cards */}
-          <div className="space-y-3">
-            {filteredIssues.map((issue) => {
-              const isExpanded = !!expandedIssues[issue.id];
-              const isFixed = issue.status === 'fixed';
-
-              return (
-                <div
-                  key={issue.id}
-                  className={`bg-white rounded-xl border transition-all shadow-sm ${
-                    isFixed
-                      ? 'border-emerald-200 bg-emerald-50/20 opacity-80'
-                      : issue.severity === 'high'
-                      ? 'border-rose-200 hover:border-rose-300'
-                      : 'border-slate-200 hover:border-slate-300'
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-semibold text-slate-900 truncate">
+                {submission.title}
+              </h1>
+              {submission.risk_level && (
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full ${
+                    submission.risk_level === 'Critical' || submission.risk_level === 'High'
+                      ? 'bg-red-50 text-red-700'
+                      : submission.risk_level === 'Moderate'
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-green-50 text-green-700'
                   }`}
                 >
-                  {/* Issue Header */}
-                  <div
-                    onClick={() => toggleExpand(issue.id)}
-                    className="p-4 cursor-pointer flex items-start justify-between gap-3 select-none"
-                  >
-                    <div className="space-y-1.5 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            issue.severity === 'high'
-                              ? 'bg-rose-100 text-rose-800'
-                              : issue.severity === 'med'
-                              ? 'bg-amber-100 text-amber-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {issue.severity}
-                        </span>
+                  {submission.risk_level}
+                </span>
+              )}
+            </div>
 
-                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
-                          {issue.category.replace('_', ' ')}
-                        </span>
-
-                        <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-50 text-slate-600 border border-slate-200">
-                          {Math.round(issue.confidence * 100)}% Confidence
-                        </span>
-
-                        {isFixed && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Fixed</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <h4 className="font-bold text-slate-900 text-sm">
-                        {issue.rule_title || issue.explanation}
-                      </h4>
-
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        {issue.explanation}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {issue.suggested_text && !isFixed && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveFixIssue(issue);
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm transition-all"
-                        >
-                          <Wand2 className="w-3.5 h-3.5" />
-                          <span>Apply Fix</span>
-                        </button>
-                      )}
-
-                      <button className="p-1 text-slate-400 hover:text-slate-600">
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* EXPANDABLE "WHY THIS FLAG?" EVIDENCE PANEL (FR-9.2) */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3 bg-slate-50/50 rounded-b-xl">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>“Why this flag?” Evidence &amp; Citation Breakdown</span>
-                      </div>
-
-                      {/* Verbatim Citation Quote Box */}
-                      <div className="p-3 rounded-lg bg-white border border-slate-200 text-xs">
-                        <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px] block mb-1">
-                          Exact Guideline / Fact Vault Citation:
-                        </span>
-                        <blockquote className="italic border-l-2 border-indigo-500 pl-2.5 text-slate-800 font-serif leading-relaxed">
-                          “{issue.source_citation}”
-                        </blockquote>
-                      </div>
-
-                      {/* Structured Evidence Chain */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                        {issue.evidence.matched_text && (
-                          <div className="p-2.5 rounded bg-white border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Matched Span</span>
-                            <span className="font-mono text-slate-900 font-semibold">{issue.evidence.matched_text}</span>
-                          </div>
-                        )}
-
-                        {issue.evidence.conflicting_fact && (
-                          <div className="p-2.5 rounded bg-white border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Conflicting Fact Vault Record</span>
-                            <span className="font-semibold text-rose-800">{issue.evidence.conflicting_fact}</span>
-                          </div>
-                        )}
-
-                        {issue.evidence.detected_color && (
-                          <div className="p-2.5 rounded bg-white border border-slate-200 flex items-center gap-2">
-                            <span
-                              className="w-5 h-5 rounded border shadow-inner flex-shrink-0"
-                              style={{ backgroundColor: issue.evidence.detected_color }}
-                            />
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase block">Non-Compliant Color</span>
-                              <span className="font-mono text-slate-900">{issue.evidence.detected_color} (ΔE: {issue.evidence.delta_e})</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {issue.evidence.contrast_ratio && (
-                          <div className="p-2.5 rounded bg-white border border-slate-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase block">Contrast Ratio vs Required</span>
-                            <span className="font-mono text-amber-800 font-bold">
-                              {issue.evidence.contrast_ratio}:1 (Required: {issue.evidence.required_contrast}:1)
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="p-2.5 rounded bg-white border border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Provenance Source</span>
-                          <span className="font-semibold text-slate-700 capitalize">
-                            {issue.evidence.provenance === 'ocr' ? 'Poster Graphic OCR' : 'Caption Copy Text'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Suggestion & Resolution */}
-                      <div className="p-3 rounded-lg bg-indigo-50/60 border border-indigo-100 text-xs text-indigo-950">
-                        <span className="font-bold text-indigo-800 uppercase tracking-wider text-[10px] block mb-0.5">
-                          Recommended Fix:
-                        </span>
-                        <p>{issue.suggestion}</p>
-                      </div>
-                    </div>
-                  )}
+            {/* Stat boxes */}
+            <div className="flex gap-3 mt-2">
+              {(['high', 'med', 'low'] as const).map((sev) => (
+                <div
+                  key={sev}
+                  className="flex items-center gap-1.5 text-xs border border-slate-200 rounded px-2 py-1"
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${severityDot[sev]}`}
+                  />
+                  <span className="text-slate-500 capitalize">
+                    {sev === 'med' ? 'Medium' : sev}
+                  </span>
+                  <span className="font-medium text-slate-700">
+                    {countBySeverity[sev]}
+                  </span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ONE-CLICK FIX DIFF MODAL (FR-10.1 - 10.4) */}
-      {activeFixIssue && activeFixIssue.suggested_text && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Wand2 className="w-5 h-5 text-indigo-600" />
-                <h3 className="font-bold text-slate-900 text-lg">One-Click Fix Diff Suggestion</h3>
-              </div>
-              <button onClick={() => setActiveFixIssue(null)} className="text-slate-400 hover:text-slate-600">
-                ✕
-              </button>
-            </div>
+      {/* Two-column layout */}
+      <div className="flex gap-6">
+        {/* Left column — submitted content */}
+        <div className="w-5/12 space-y-4">
+          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Submitted Content
+          </h2>
 
-            <div className="mt-4 space-y-4 text-xs">
-              <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900">
-                <strong>Rule / Fact Addressed:</strong> {activeFixIssue.rule_title || activeFixIssue.explanation}
-              </div>
+          {/* Caption with highlights */}
+          <div className="border border-slate-200 rounded-lg p-3">
+            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+              {buildHighlightedCaption(submission.caption, issues)}
+            </p>
+          </div>
 
-              {/* Visual Diff Rendering */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Visual Diff (Original vs Brand-Compliant Rewrite)
-                </label>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono leading-relaxed space-y-3">
-                  <div>
-                    <span className="text-xs font-bold text-red-600 uppercase tracking-wider block mb-1">Original Text:</span>
-                    <div className="p-2.5 rounded bg-red-50 text-red-900 border border-red-200 line-through">
-                      {submission.caption}
-                    </div>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider block mb-1">Suggested Replacement:</span>
-                    <div className="p-2.5 rounded bg-emerald-50 text-emerald-950 border border-emerald-200 font-semibold">
-                      {activeFixIssue.suggested_text}
-                    </div>
-                  </div>
+          {/* Image preview */}
+          {submission.image_url && (
+            <div className="relative border border-slate-200 rounded-lg overflow-hidden">
+              <img
+                src={submission.image_url}
+                alt={submission.title}
+                className="w-full object-cover max-h-64"
+              />
+              {/* Overlay badges for color/contrast issues */}
+              {issues.some(
+                (i) =>
+                  i.status === 'open' &&
+                  (i.category === 'visual_colour' || i.category === 'visual_contrast')
+              ) && (
+                <div className="absolute bottom-2 left-2 flex gap-1">
+                  {issues
+                    .filter(
+                      (i) =>
+                        i.status === 'open' &&
+                        (i.category === 'visual_colour' ||
+                          i.category === 'visual_contrast')
+                    )
+                    .map((i) => (
+                      <span
+                        key={i.id}
+                        className={`text-xs px-1.5 py-0.5 rounded ${severityBg[i.severity]} backdrop-blur-sm`}
+                      >
+                        {i.category === 'visual_colour' ? 'Color' : 'Contrast'}
+                      </span>
+                    ))}
                 </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  onClick={() => setActiveFixIssue(null)}
-                  className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleAcceptFix(activeFixIssue)}
-                  className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm transition-all flex items-center gap-1.5"
-                >
-                  <Check className="w-4 h-4" />
-                  <span>Accept Fix &amp; Mutate Text</span>
-                </button>
-              </div>
+              )}
             </div>
+          )}
+
+          {/* Review actions */}
+          <div className="pt-2 space-y-2">
+            {isCreator && submission.status === 'analyzed' && (
+              <button
+                onClick={onSubmitForReview}
+                className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Submit for Review
+              </button>
+            )}
+
+            {isReviewer && submission.review_status === 'pending' && (
+              <>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Review comment…"
+                  rows={2}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-300"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      onSubmitReview(submission.id, 'approve', reviewComment)
+                    }
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Approve
+                  </button>
+                  <button
+                    onClick={() =>
+                      onSubmitReview(
+                        submission.id,
+                        'request_changes',
+                        reviewComment
+                      )
+                    }
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Request Changes
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Right column — issues */}
+        <div className="w-7/12 space-y-3">
+          {/* Filter pills */}
+          <div className="flex items-center gap-1.5">
+            {filters.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                  filter === f.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <span className="text-xs text-slate-400 ml-auto">
+              {filteredIssues.length} issue{filteredIssues.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* Issue cards */}
+          <div className="space-y-2">
+            {filteredIssues.map((issue) => (
+              <IssueCard
+                key={issue.id}
+                issue={issue}
+                caption={submission.caption}
+                onApplyFix={onApplyFix}
+              />
+            ))}
+
+            {filteredIssues.length === 0 && (
+              <p className="text-sm text-slate-400 py-8 text-center">
+                No issues match this filter.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
+export default CitedIssueReport;

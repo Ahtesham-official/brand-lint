@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Play, CheckCircle2, ChevronRight, Sparkles, Clock, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Play, X } from 'lucide-react';
 import { UserRole } from '@/types';
 
 interface DemoStep {
   time: string;
-  duration: number; // in seconds
+  duration: number;
   beat: string;
   actionText: string;
   roleToSwitch?: UserRole;
@@ -53,7 +53,7 @@ const DEMO_STEPS: DemoStep[] = [
   {
     time: '2:10 - 2:30',
     duration: 20,
-    beat: '“Why this flag?” Evidence Panel',
+    beat: '"Why this flag?" Evidence Panel',
     actionText: 'Expand Evidence Panel',
     instructions: 'Open "Why this flag?": Point to the verbatim guideline quote citation, 98% confidence score, and exact Fact Vault cross-reference.',
   },
@@ -77,7 +77,7 @@ const DEMO_STEPS: DemoStep[] = [
     duration: 5,
     beat: 'Punchy Close',
     actionText: 'Closing Statement',
-    instructions: '“AI detects and explains. Humans decide and approve. This is the compiler for brand content.”',
+    instructions: '"AI detects and explains. Humans decide and approve. This is the compiler for brand content."',
   },
 ];
 
@@ -107,104 +107,118 @@ export const DemoGuideModal: React.FC<DemoGuideModalProps> = ({
     if (currentStep.beat.includes('Creator Submits')) {
       onLoadDemoSubmission();
     }
+  };
+
+  const goNext = () => {
     if (currentStepIndex < DEMO_STEPS.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
     }
   };
 
+  const goPrev = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(currentStepIndex - 1);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
-            <div>
-              <h3 className="font-extrabold text-slate-900 text-lg">
-                BrandLint Hackathon Demo Script (2m 45s)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Official Pitch &amp; Live Verification Walkthrough Guide (Section 17.2)
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl max-w-xl w-full border border-slate-200 shadow-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Demo Script</h2>
+            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> 2m 45s · {DEMO_STEPS.length} steps
+            </p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 font-bold text-lg">
-            ✕
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Current Beat Highlight Card */}
-        <div className="mt-4 p-5 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-600 text-white">
-              Beat {currentStepIndex + 1} of {DEMO_STEPS.length}
-            </span>
-            <span className="flex items-center gap-1 text-xs font-mono font-semibold text-indigo-900">
-              <Clock className="w-3.5 h-3.5" />
-              <span>{currentStep.time}</span>
-            </span>
-          </div>
-
-          <h4 className="text-lg font-bold text-slate-900 mt-2">{currentStep.beat}</h4>
-          <p className="text-sm text-slate-700 mt-1 leading-relaxed">{currentStep.instructions}</p>
-
-          <div className="mt-4 pt-3 border-t border-indigo-200/60 flex items-center justify-between">
-            <button
-              onClick={handleStepAction}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition-all"
-            >
-              <span>{currentStep.actionText}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-center gap-1">
-              {DEMO_STEPS.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentStepIndex(idx)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${
-                    idx === currentStepIndex ? 'w-6 bg-indigo-600' : 'bg-slate-300 hover:bg-slate-400'
+        {/* Step list */}
+        <div className="px-5 py-3 max-h-56 overflow-y-auto">
+          <div className="space-y-1">
+            {DEMO_STEPS.map((step, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentStepIndex(idx)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors ${
+                  idx === currentStepIndex
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'hover:bg-slate-50 border border-transparent'
+                }`}
+              >
+                <span
+                  className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${
+                    idx === currentStepIndex
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-500'
                   }`}
-                  title={`Jump to step ${idx + 1}`}
-                />
-              ))}
-            </div>
+                >
+                  {idx + 1}
+                </span>
+                <span
+                  className={`text-xs flex-1 truncate ${
+                    idx === currentStepIndex ? 'font-medium text-blue-900' : 'text-slate-600'
+                  }`}
+                >
+                  {step.beat}
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 shrink-0">{step.time}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* All Beats Quick List */}
-        <div className="mt-4 max-h-48 overflow-y-auto space-y-1.5 pr-1">
-          {DEMO_STEPS.map((step, idx) => (
-            <div
-              key={idx}
-              onClick={() => setCurrentStepIndex(idx)}
-              className={`p-2.5 rounded-lg text-xs cursor-pointer flex items-center justify-between transition-colors ${
-                idx === currentStepIndex
-                  ? 'bg-indigo-100/70 border border-indigo-300 font-bold text-indigo-900'
-                  : 'hover:bg-slate-50 text-slate-600 border border-transparent'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="w-5 text-slate-400 font-mono text-[11px]">{idx + 1}.</span>
-                <span>{step.beat}</span>
-              </div>
-              <span className="font-mono text-[10px] text-slate-400">{step.time}</span>
-            </div>
-          ))}
+        {/* Current step detail */}
+        <div className="mx-5 mb-4 p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-blue-700">
+              Step {currentStepIndex + 1}: {currentStep.beat}
+            </span>
+            <span className="text-[10px] font-mono text-blue-500">{currentStep.time}</span>
+          </div>
+          <p className="text-sm text-slate-700 leading-relaxed">{currentStep.instructions}</p>
+
+          <button
+            onClick={handleStepAction}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors"
+          >
+            <Play className="w-3 h-3" />
+            {currentStep.actionText}
+          </button>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400 italic">
-            “AI detects and explains. Humans decide and approve.”
-          </span>
+        {/* Footer nav */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-slate-200">
           <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold"
+            onClick={goPrev}
+            disabled={currentStepIndex === 0}
+            className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-md border border-slate-200 hover:border-slate-300 transition-colors"
           >
-            Close Guide
+            <ChevronLeft className="w-3.5 h-3.5" />
+            Prev
+          </button>
+
+          <span className="text-xs text-slate-400">
+            {currentStepIndex + 1} / {DEMO_STEPS.length}
+          </span>
+
+          <button
+            onClick={goNext}
+            disabled={currentStepIndex === DEMO_STEPS.length - 1}
+            className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-md border border-slate-200 hover:border-slate-300 transition-colors"
+          >
+            Next
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
     </div>
   );
 };
-
