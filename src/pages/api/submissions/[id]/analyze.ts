@@ -1,30 +1,59 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { store } from '@/lib/store';
-import { runCheckEngine } from '@/lib/checkEngine';
+import { serverDb } from '@/lib/server/db';
+import { runCheckEngineAsync } from '@/lib/checkEngine';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
   const subId = Array.isArray(id) ? id[0] : id;
 
   if (req.method === 'POST') {
-    const submission = store.getSubmission(subId as string);
+    const submission = serverDb.getSubmissionById(subId as string);
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    const activeRules = store.getActiveRules();
-    const result = runCheckEngine({
+    const activeRules = serverDb.getRules().filter((r) => r.status === 'confirmed');
+    const brand = serverDb.getBrand();
+    const facts = serverDb.getFacts();
+
+    const analysis = await runCheckEngineAsync({
       submissionId: submission.id,
       caption: submission.caption,
       imageUrl: submission.image_url,
-      brand: store.getBrand(),
+      ocrText: req.body?.ocr_text || '',
+      brand,
       rules: activeRules,
-      facts: store.getFacts(),
+      facts,
     });
 
-    return res.status(200).json(result);
+    serverDb.saveSubmissionIssues(submission.id, analysis.issues);
+    const updated = serverDb.updateSubmission(submission.id, {
+      status: 'analyzed',
+      risk_score: analysis.riskScore,
+      risk_level: analysis.riskLevel,
+      analyzed_at: new Date().toISOString(),
+    });
+
+    serverDb.createAuditLog({
+      actor_id: submission.creator_id,
+      actor_name: submission.creator_name || 'Creator',
+      actor_role: 'creator',
+      action: 'submission_analyzed',
+      entity: 'submission',
+      entity_id: submission.id,
+      meta: {
+        issues_count: analysis.issues.length,
+        risk_score: analysis.riskScore,
+        engine_used: analysis.engineUsed,
+      },
+    });
+
+    return res.status(200).json({
+      submission: updated || submission,
+      issues: analysis.issues,
+      analysis,
+    });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
-

@@ -1,8 +1,19 @@
 import React from 'react';
 import { User, UserRole, Brand } from '@/types';
 import {
-  ShieldCheck, FileText, Database, PenTool, Eye,
-  BookOpen, Palette, RefreshCw, PlayCircle, ChevronDown, History
+  ShieldCheck,
+  FileText,
+  Database,
+  PenTool,
+  Eye,
+  BookOpen,
+  Palette,
+  RefreshCw,
+  PlayCircle,
+  LogIn,
+  History,
+  Sparkles,
+  Cpu,
 } from 'lucide-react';
 
 export type Page = 'guidelines' | 'rules' | 'facts' | 'brand' | 'submit' | 'submissions' | 'review' | 'audit';
@@ -15,6 +26,9 @@ interface SidebarProps {
   onRoleChange: (role: UserRole) => void;
   onResetSeed: () => void;
   onOpenDemoGuide: () => void;
+  onOpenAuth: () => void;
+  onOpenGroqModal: () => void;
+  groqActive: boolean;
   activeRulesCount: number;
   factsCount: number;
 }
@@ -23,7 +37,7 @@ const NAV_ITEMS: { page: Page; label: string; icon: React.ElementType; roles: Us
   { page: 'guidelines', label: 'Guidelines', icon: FileText, roles: ['admin'] },
   { page: 'rules', label: 'Rules', icon: BookOpen, roles: ['admin'] },
   { page: 'facts', label: 'Fact Vault', icon: Database, roles: ['admin'] },
-  { page: 'brand', label: 'Brand', icon: Palette, roles: ['admin'] },
+  { page: 'brand', label: 'Brand Profile', icon: Palette, roles: ['admin'] },
   { page: 'submit', label: 'New Check', icon: PenTool, roles: ['creator'] },
   { page: 'submissions', label: 'Submissions', icon: FileText, roles: ['creator', 'reviewer'] },
   { page: 'review', label: 'Review Queue', icon: Eye, roles: ['reviewer'] },
@@ -44,40 +58,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRoleChange,
   onResetSeed,
   onOpenDemoGuide,
+  onOpenAuth,
+  onOpenGroqModal,
+  groqActive,
   activeRulesCount,
   factsCount,
 }) => {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(currentUser.role));
 
   return (
-    <aside className="w-56 h-screen sticky top-0 flex flex-col border-r border-slate-200/80 bg-white shrink-0">
-      {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-100">
+    <aside className="w-60 h-screen sticky top-0 flex flex-col border-r border-slate-200/90 bg-white shrink-0">
+      {/* Brand & App Title */}
+      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <ShieldCheck className="w-4 h-4 text-white" />
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+            <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-semibold text-sm text-slate-900 tracking-tight">BrandLint</span>
-            <span className="text-[10px] text-slate-400 ml-1.5">v1.0</span>
+            <span className="font-bold text-sm text-slate-900 tracking-tight">BrandLint</span>
+            <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono ml-1.5">v1.0</span>
           </div>
         </div>
       </div>
 
-      {/* Brand pill */}
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-100">
-          <div className="flex gap-0.5">
+      {/* Brand Pill */}
+      <div className="px-3 pt-3 pb-1">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/70">
+          <div className="flex gap-1">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: brand.palette.primary }} />
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: brand.palette.secondary }} />
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: brand.palette.accent }} />
           </div>
-          <span className="text-xs font-medium text-slate-700 truncate">{brand.name}</span>
+          <span className="text-xs font-semibold text-slate-800 truncate">{brand.name}</span>
+          <span className="text-[10px] text-slate-400 ml-auto font-mono">Governed</span>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePage === item.page;
@@ -87,17 +105,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               key={item.page}
               onClick={() => onNavigate(item.page)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                 isActive
-                  ? 'bg-blue-50 text-blue-700'
+                  ? 'bg-blue-50 text-blue-700 shadow-sm'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
               <span className="flex-1 text-left">{item.label}</span>
               {count !== undefined && (
-                <span className={`text-2xs px-1.5 py-0.5 rounded-full font-medium ${
-                  isActive ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  isActive ? 'bg-blue-200/70 text-blue-800' : 'bg-slate-200/70 text-slate-600'
                 }`}>
                   {count}
                 </span>
@@ -107,47 +125,95 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Bottom section */}
-      <div className="px-3 pb-4 space-y-2 border-t border-slate-100 pt-3">
-        {/* Demo guide button */}
+      {/* Bottom tools & role switcher */}
+      <div className="px-3 pb-3 space-y-2 border-t border-slate-100 pt-2.5">
+        {/* Groq GenAI indicator / toggle */}
+        <button
+          onClick={onOpenGroqModal}
+          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            groqActive
+              ? 'bg-orange-50/70 text-orange-800 border-orange-200 hover:bg-orange-100'
+              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+          }`}
+          title="Configure Groq GenAI Llama-3.3-70B Key"
+        >
+          <span className="flex items-center gap-1.5">
+            <Cpu className={`w-3.5 h-3.5 ${groqActive ? 'text-orange-600' : 'text-slate-400'}`} />
+            <span>Groq GenAI</span>
+          </span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+            groqActive ? 'bg-orange-200 text-orange-900' : 'bg-slate-200 text-slate-600'
+          }`}>
+            {groqActive ? 'Live' : 'Fallback'}
+          </span>
+        </button>
+
+        {/* Demo script button */}
         <button
           onClick={onOpenDemoGuide}
-          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[13px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-200/70"
         >
-          <PlayCircle className="w-4 h-4" />
-          <span>Demo Script</span>
+          <PlayCircle className="w-3.5 h-3.5" />
+          <span>Demo Script (2m 45s)</span>
         </button>
 
         {/* Reset button */}
         <button
           onClick={onResetSeed}
-          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[13px] text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-lg text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Reset Data</span>
+          <RefreshCw className="w-3 h-3" />
+          <span>Reset Demo Seed</span>
         </button>
 
-        {/* Role switcher */}
-        <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 space-y-1.5">
-          <div className="flex items-center gap-2 px-1">
-            {currentUser.avatar && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={currentUser.avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+        {/* Demo Role Switcher toggle (PRD FR-1.4) */}
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-blue-600" />
+              Demo Switcher (FR-1.4)
+            </span>
+            <button
+              onClick={onOpenAuth}
+              className="text-[10px] text-blue-600 hover:underline font-semibold flex items-center gap-0.5"
+              title="Open Auth / Login"
+            >
+              <LogIn className="w-2.5 h-2.5" />
+              Auth
+            </button>
+          </div>
+
+          <div
+            onClick={onOpenAuth}
+            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+          >
+            {currentUser.avatar ? (
+              <img
+                src={currentUser.avatar}
+                alt=""
+                className="w-6 h-6 rounded-full object-cover border border-slate-200"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-bold">
+                {currentUser.name.slice(0, 1)}
+              </div>
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-slate-800 truncate">{currentUser.name}</div>
+              <div className="text-xs font-semibold text-slate-900 truncate">{currentUser.name}</div>
               <div className="text-[10px] text-slate-400 truncate">{currentUser.title}</div>
             </div>
           </div>
-          <div className="flex gap-1">
+
+          {/* Quick 1-click role switcher pills */}
+          <div className="flex gap-1 pt-0.5">
             {(['admin', 'creator', 'reviewer'] as UserRole[]).map((role) => (
               <button
                 key={role}
                 onClick={() => onRoleChange(role)}
-                className={`flex-1 px-1.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                className={`flex-1 py-1 rounded-md text-[10px] font-semibold transition-all ${
                   currentUser.role === role
-                    ? 'bg-white text-blue-700 shadow-sm border border-slate-200'
-                    : 'text-slate-500 hover:text-slate-700'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                 }`}
               >
                 {ROLE_LABELS[role]}
@@ -159,4 +225,3 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
-

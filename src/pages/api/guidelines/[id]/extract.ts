@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { store } from '@/lib/store';
+import { serverDb } from '@/lib/server/db';
 import { extractRulesFromGuidelineText } from '@/lib/ruleExtractor';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -7,13 +7,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const guidelineId = Array.isArray(id) ? id[0] : id;
 
   if (req.method === 'POST') {
-    const guideline = store.getGuidelines().find((g) => g.id === guidelineId);
+    const guideline = serverDb.getGuidelineById(guidelineId as string);
     if (!guideline) {
       return res.status(404).json({ error: 'Guideline not found' });
     }
 
     const rules = await extractRulesFromGuidelineText(guideline.raw_text, guideline.id);
-    store.setRulesForGuideline(guideline.id, rules);
+    serverDb.replaceRulesForGuideline(guideline.id, rules);
 
     return res.status(200).json({
       success: true,
@@ -25,4 +25,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
-

@@ -11,7 +11,6 @@ export interface ExtractedRuleItem {
   required_phrase?: string;
 }
 
-// Strictly validates extracted rule JSON schema according to PRD FR-3.4 and FR-3.5
 export function validateRuleSchema(item: any): item is ExtractedRuleItem {
   const validCategories: RuleCategory[] = [
     'banned_term',
@@ -36,10 +35,8 @@ export function validateRuleSchema(item: any): item is ExtractedRuleItem {
   );
 }
 
-// Fallback intelligent heuristic extractor when LLM key is not provided or API fails
 export function extractRulesHeuristically(text: string, guidelineId: string): Rule[] {
   const extracted: Rule[] = [];
-  const lines = text.split('\n');
 
   // Rule 1: Banned Terms & Superlatives
   if (/superlative|banned|prohibited|avoid|never/i.test(text)) {
@@ -100,8 +97,8 @@ export function extractRulesHeuristically(text: string, guidelineId: string): Ru
       id: `rule-ext-${Date.now()}-4`,
       guideline_id: guidelineId,
       category: 'required_disclaimer',
-      title: 'Promotional Offer Legal Disclaimer',
-      description: 'Content highlighting pricing promotions or limited-time events must feature standard terms and conditions disclaimer text.',
+      title: 'Mandatory Promotional Legal Disclaimer',
+      description: 'Promotional campaigns, discount offers, and limited-time sales require an explicit terms and conditions legal disclaimer.',
       severity: 'med',
       confidence: 0.93,
       source_citation: citation,
@@ -111,73 +108,77 @@ export function extractRulesHeuristically(text: string, guidelineId: string): Ru
   }
 
   // Rule 5: Visual Palette
-  if (/color|palette|visual|navy|cyan|pink/i.test(text)) {
-    const citation = 'Apex Audio visual materials must remain faithful to our signature acoustic palette... Off-palette fluorescent hot pinks (e.g., #E11D48 or #EC4899) and loud neon reds are strictly prohibited...';
+  if (/palette|color|navy|cyan|pink/i.test(text)) {
+    const citation = 'Apex Audio visual materials must remain faithful to our signature acoustic palette: Primary: Acoustic Navy Blue (#1E3A8A), Secondary: Electric Cyan (#3B82F6), Accent: Studio Emerald (#10B981). Off-palette fluorescent hot pinks...';
     extracted.push({
       id: `rule-ext-${Date.now()}-5`,
       guideline_id: guidelineId,
       category: 'visual_colour',
-      title: 'Acoustic Visual Palette Governance',
-      description: 'Poster graphics must utilize certified acoustic palette colors. Fluorescent or unapproved neon hues are rejected.',
+      title: 'Authorized Palette Identity Compliance',
+      description: 'Design elements and promotional graphics must exclusively use verified brand palette hex colors.',
       severity: 'high',
-      confidence: 0.94,
+      confidence: 0.96,
       source_citation: citation,
       status: 'extracted',
     });
   }
 
   // Rule 6: WCAG Contrast
-  if (/contrast|wcag|typography|legib/i.test(text)) {
-    const citation = 'All typography overlaid on posters, promotional graphics, or video stills must adhere strictly to the WCAG AA standard, requiring a minimum contrast ratio of 4.5:1 against the backdrop.';
+  if (/contrast|accessibility|wcag|4.5:1/i.test(text)) {
+    const citation = 'All typography overlaid on posters, promotional graphics, or video stills must adhere strictly to the WCAG AA standard, requiring a minimum contrast ratio of 4.5:1 against the backdrop for legible reading.';
     extracted.push({
       id: `rule-ext-${Date.now()}-6`,
       guideline_id: guidelineId,
       category: 'visual_contrast',
-      title: 'WCAG AA 4.5:1 Minimum Typography Contrast',
-      description: 'Overlaid headline and body copy must achieve a minimum 4.5:1 contrast ratio against visual backdrops.',
+      title: 'Accessible Contrast Standards (WCAG AA 4.5:1)',
+      description: 'Poster text must have a minimum 4.5:1 contrast ratio against backdrops for readability.',
       severity: 'med',
-      confidence: 0.91,
+      confidence: 0.92,
       source_citation: citation,
       status: 'extracted',
     });
   }
 
-  // Rule 7: Low-Confidence Provisional Rule (FR-3.7: < 0.6 flagged as "Needs confirmation")
-  extracted.push({
-    id: `rule-ext-${Date.now()}-7`,
-    guideline_id: guidelineId,
-    category: 'banned_term',
-    title: 'Provisional Restriction on Slang & Idioms',
-    description: 'Informal colloquial expressions should be avoided in official releases.',
-    severity: 'low',
-    confidence: 0.52, // Under 0.6 to test FR-3.7 visual warning badge
-    source_citation: 'Never employ aggressive hype, exaggerated claims, exclamation point spam, or street slang.',
-    status: 'extracted',
-    banned_words: ['slaps', 'lit', 'fire', 'dope'],
-  });
-
   return extracted;
 }
 
+/**
+ * Extracts atomic compliance rules using Groq Llama 3.3 70B,
+ * with automatic fallback to heuristic extraction.
+ */
 export async function extractRulesFromGuidelineText(text: string, guidelineId: string): Promise<Rule[]> {
-  // If GROQ_API_KEY is available in process.env, attempt LLM call
-  if (process.env.GROQ_API_KEY) {
+  const apiKey = process.env.GROQ_API_KEY;
+
+  if (apiKey && apiKey.trim().length > 0) {
     try {
       const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+          Authorization: `Bearer ${apiKey.trim()}`,
         },
         body: JSON.stringify({
-          model: 'llama3-70b-8192',
+          model: 'llama-3.3-70b-versatile',
           messages: [
             {
               role: 'system',
-              content: `You are a brand guideline compiler. Extract atomic rules from the text below.
-Return STRICT JSON: an array of objects with fields:
-category (banned_term|required_disclaimer|tone|messaging|claim_policy|visual_colour|visual_contrast),
-title, description, severity (low|med|high), confidence (0-1), source_citation (quote from the text).
+              content: `You are BrandLint's brand guideline compiler.
+Extract atomic, enforceable brand governance rules from the guideline document below.
+Return STRICT JSON with a root object containing an array "rules":
+{
+  "rules": [
+    {
+      "category": "banned_term" | "required_disclaimer" | "tone" | "messaging" | "claim_policy" | "visual_colour" | "visual_contrast",
+      "title": string,
+      "description": string,
+      "severity": "high" | "med" | "low",
+      "confidence": number between 0.0 and 1.0,
+      "source_citation": string (verbatim quote from the text),
+      "banned_words": string[] (optional for banned_term),
+      "required_phrase": string (optional for required_disclaimer)
+    }
+  ]
+}
 Rules must be atomic — one constraint per rule. Do not invent rules not present in the text.`,
             },
             {
@@ -216,4 +217,3 @@ Rules must be atomic — one constraint per rule. Do not invent rules not presen
   // Heuristic extraction fallback (fast, deterministic, < 25s, PRD-compliant)
   return extractRulesHeuristically(text, guidelineId);
 }
-

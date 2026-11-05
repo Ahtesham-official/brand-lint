@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { store } from '@/lib/store';
+import { serverDb } from '@/lib/server/db';
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
@@ -9,14 +9,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Submission ID is required' });
   }
 
-  const submission = store.getSubmission(subId);
+  const submission = serverDb.getSubmissionById(subId);
   if (!submission) {
     return res.status(404).json({ error: 'Submission not found' });
   }
 
   if (req.method === 'GET') {
-    const issues = store.getIssuesForSubmission(subId);
-    const reviews = store.getReviewsForSubmission(subId);
+    const issues = serverDb.getIssues(subId);
+    const reviews = serverDb.getReviews(subId);
     return res.status(200).json({
       submission,
       issues,
@@ -24,6 +24,11 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     });
   }
 
+  if (req.method === 'PATCH') {
+    const updates = req.body;
+    const updated = serverDb.updateSubmission(subId, updates);
+    return res.status(200).json(updated);
+  }
+
   return res.status(405).json({ error: 'Method not allowed' });
 }
-
