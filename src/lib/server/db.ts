@@ -19,7 +19,7 @@ import {
   SEEDED_RULES,
   SEEDED_FACTS,
 } from '@/data/seedData';
-import { getMongoDb } from './mongodb';
+import { getMongoDb, isMongoConfigured } from './mongodb';
 
 export interface DatabaseSchema {
   brand: Brand;
@@ -89,6 +89,7 @@ class ServerDatabase {
 
   // Asynchronously syncs in-memory data with MongoDB Atlas
   private async syncToMongo(collectionName: keyof DatabaseSchema, data: any) {
+    if (!isMongoConfigured()) return;
     try {
       const db = await getMongoDb();
       if (Array.isArray(data)) {
@@ -107,7 +108,7 @@ class ServerDatabase {
   }
 
   public async initFromMongo(): Promise<void> {
-    if (this.mongoInitialized) return;
+    if (this.mongoInitialized || !isMongoConfigured()) return;
     try {
       const db = await getMongoDb();
       const collections = await db.listCollections().toArray();
@@ -756,4 +757,6 @@ class ServerDatabase {
 }
 
 export const serverDb = new ServerDatabase();
-serverDb.initFromMongo().catch((e) => console.warn('serverDb initFromMongo non-blocking error:', e.message));
+if (isMongoConfigured()) {
+  serverDb.initFromMongo().catch((e) => console.warn('serverDb initFromMongo non-blocking error:', e.message));
+}
