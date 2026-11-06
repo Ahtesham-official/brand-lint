@@ -388,6 +388,25 @@ class ServerDatabase {
     return all;
   }
 
+  /**
+   * Returns ONLY rules that are:
+   * 1. status === 'confirmed'
+   * 2. Their parent guideline is enabled (enabled !== false) AND status !== 'disabled'
+   * This is what the check engine / Groq should use so that toggled-off guidelines
+   * are truly excluded from compliance judging.
+   */
+  public getActiveRules(): Rule[] {
+    const data = this.readDb();
+    const enabledGuidelineIds = new Set(
+      data.guidelines
+        .filter((g) => g.enabled !== false && g.status !== 'disabled')
+        .map((g) => g.id)
+    );
+    return data.rules.filter(
+      (r) => r.status === 'confirmed' && enabledGuidelineIds.has(r.guideline_id)
+    );
+  }
+
   public getRuleById(id: string): Rule | undefined {
     return this.readDb().rules.find((r) => r.id === id);
   }

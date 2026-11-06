@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    const activeRules = serverDb.getRules().filter((r) => r.status === 'confirmed');
+    const activeRules = serverDb.getActiveRules();
     const brand = serverDb.getBrand();
     const facts = serverDb.getFacts();
 

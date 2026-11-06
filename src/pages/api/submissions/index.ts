@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // 2. Fetch the active Admin rules and Fact Vault records
-    const activeRules = serverDb.getRules().filter((r) => r.status === 'confirmed');
+    const activeRules = serverDb.getActiveRules();
     const brand = serverDb.getBrand();
     const facts = serverDb.getFacts();
 
