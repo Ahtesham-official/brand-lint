@@ -6,19 +6,18 @@ import {
   Plus,
   Link as LinkIcon,
   Users,
-  Shield,
   ArrowRight,
-  Sparkles,
-  CheckCircle2,
+  Shield,
+  X,
 } from 'lucide-react';
 import { OrgLayout } from '@/components/layout/OrgLayout';
 import { Organization, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
 
-const ROLE_COLORS: Record<OrgRole, string> = {
-  admin: 'bg-blue-100 text-blue-700 border-blue-200',
-  creator: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  reviewer: 'bg-amber-100 text-amber-700 border-amber-200',
+const ROLE_STYLES: Record<OrgRole, { bg: string; text: string; border: string }> = {
+  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
 
 export default function OrgsListPage() {
@@ -63,7 +62,6 @@ export default function OrgsListPage() {
     if (!inviteTokenInput.trim()) return;
 
     let token = inviteTokenInput.trim();
-    // Support either bare token or full URL (e.g. http://localhost:3000/orgs/join?token=xyz)
     if (token.includes('token=')) {
       try {
         const url = new URL(token, 'http://localhost');
@@ -82,112 +80,227 @@ export default function OrgsListPage() {
         <>
           <button
             onClick={() => setShowJoinModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 16px',
+              fontSize: 12,
+              fontWeight: 700,
+              background: 'var(--white)',
+              color: 'var(--ink)',
+              border: '1px solid var(--rule-dark)',
+              cursor: 'pointer',
+            }}
           >
-            <LinkIcon className="w-3.5 h-3.5 text-slate-500" />
+            <LinkIcon style={{ width: 14, height: 14, color: 'var(--ink-light)' }} />
             Join with Invite
           </button>
           <Link
             href="/orgs/new"
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 18px',
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: 'none',
+              boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+              transition: 'transform 0.08s ease, box-shadow 0.08s ease',
+            }}
           >
-            <Plus className="w-4 h-4" />
+            <Plus style={{ width: 15, height: 15 }} />
             Create Organisation
           </Link>
         </>
       }
     >
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+        <div style={{
+          marginBottom: 24,
+          padding: '16px 20px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          color: '#991b1b',
+          fontSize: 13,
+        }}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-44 rounded-2xl border border-slate-200 bg-white p-5 animate-pulse flex flex-col justify-between"
+              style={{
+                height: 180,
+                border: '1px solid var(--rule)',
+                background: 'var(--white)',
+                padding: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                opacity: 0.6,
+              }}
             >
-              <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-100" />
-                <div className="h-4 w-3/4 bg-slate-100 rounded" />
-                <div className="h-3 w-full bg-slate-100 rounded" />
+              <div>
+                <div style={{ width: 36, height: 36, background: 'var(--paper-mid)', marginBottom: 16 }} />
+                <div style={{ height: 16, width: '60%', background: 'var(--paper-mid)', marginBottom: 8 }} />
+                <div style={{ height: 12, width: '90%', background: 'var(--paper-mid)' }} />
               </div>
-              <div className="h-4 w-1/3 bg-slate-100 rounded" />
+              <div style={{ height: 12, width: '40%', background: 'var(--paper-mid)' }} />
             </div>
           ))}
         </div>
       ) : orgs.length === 0 ? (
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-12 text-center max-w-lg mx-auto shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4">
-            <Building2 className="w-6 h-6" />
+        <div style={{
+          background: 'var(--white)',
+          border: '1px solid var(--rule)',
+          padding: '48px 32px',
+          textAlign: 'center',
+          maxWidth: 540,
+          margin: '40px auto',
+        }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            background: 'var(--accent-bg)',
+            color: 'var(--accent)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px',
+            border: '1px solid var(--rule)',
+          }}>
+            <Building2 style={{ width: 24, height: 24 }} />
           </div>
-          <h3 className="text-base font-bold text-slate-900">No organisations found</h3>
-          <p className="text-xs text-slate-500 mt-1.5 mb-6">
-            You do not currently belong to any organisation. Create your first organisation or join one via an invite link.
+          <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 800, color: 'var(--ink)', margin: '0 0 8px' }}>
+            No organisations found
+          </h3>
+          <p style={{ fontSize: 13, color: 'var(--ink-mid)', margin: '0 0 24px', lineHeight: 1.6 }}>
+            You do not currently belong to any organisation. Create your first workspace container or join an existing one using an invite link.
           </p>
-          <div className="flex items-center justify-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
             <button
               onClick={() => setShowJoinModal(true)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+              style={{
+                padding: '9px 16px',
+                fontSize: 12,
+                fontWeight: 700,
+                background: 'var(--white)',
+                color: 'var(--ink)',
+                border: '1px solid var(--rule-dark)',
+                cursor: 'pointer',
+              }}
             >
               Join with Invite
             </button>
             <Link
               href="/orgs/new"
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+              className="btn-primary"
+              style={{
+                padding: '9px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                textDecoration: 'none',
+                boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+              }}
             >
               Create Organisation
             </Link>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 24 }}>
           {orgs.map((org) => {
-            const role = org.role || 'member';
-            const roleBadgeClass =
-              org.role && ROLE_COLORS[org.role]
-                ? ROLE_COLORS[org.role]
-                : 'bg-slate-100 text-slate-700 border-slate-200';
+            const role = org.role || 'creator';
+            const roleStyle = ROLE_STYLES[role] || ROLE_STYLES.creator;
 
             return (
               <Link
                 key={org.id}
                 href={`/orgs/${org.id}`}
-                className="group relative bg-white border border-slate-200/90 hover:border-blue-300 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                style={{
+                  background: 'var(--white)',
+                  border: '1px solid var(--rule)',
+                  padding: 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                  transition: 'transform 0.08s ease, box-shadow 0.08s ease',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translate(-2px, -2px)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '4.5px 4.5px 0px var(--btn-shadow)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = 'translate(0, 0)';
+                  (e.currentTarget as HTMLElement).style.boxShadow = '2.5px 2.5px 0px var(--btn-shadow)';
+                }}
               >
                 <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white transition-colors flex items-center justify-center">
-                      <Building2 className="w-5 h-5" />
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+                    <div style={{
+                      width: 40,
+                      height: 40,
+                      background: 'var(--ink)',
+                      color: '#fef3c7',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Building2 style={{ width: 20, height: 20 }} />
                     </div>
                     {org.role && (
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider border ${roleBadgeClass}`}
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          background: roleStyle.bg,
+                          color: roleStyle.text,
+                          border: `1px solid ${roleStyle.border}`,
+                        }}
                       >
                         {org.role}
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 6px', letterSpacing: '-0.01em' }}>
                     {org.name}
                   </h3>
-                  <p className="text-xs text-slate-500 line-clamp-2 mt-1">
+                  <p style={{ fontSize: 13, color: 'var(--ink-mid)', margin: 0, lineHeight: 1.5 }}>
                     {org.description || 'No description provided.'}
                   </p>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{org.member_count ?? 1} members</span>
+                <div style={{
+                  paddingTop: 16,
+                  marginTop: 20,
+                  borderTop: '1px solid var(--rule)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: 12,
+                  color: 'var(--ink-light)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Users style={{ width: 14, height: 14, color: 'var(--ink-faint)' }} />
+                    <span>{org.member_count ?? 1} {org.member_count === 1 ? 'member' : 'members'}</span>
                   </div>
-                  <div className="flex items-center gap-1 font-semibold text-blue-600 group-hover:translate-x-0.5 transition-transform">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontWeight: 700, color: 'var(--accent)' }}>
                     <span>Manage</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ArrowRight style={{ width: 14, height: 14 }} />
                   </div>
                 </div>
               </Link>
@@ -198,21 +311,59 @@ export default function OrgsListPage() {
 
       {/* Join via Invite Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <LinkIcon className="w-4 h-4" />
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(28, 25, 23, 0.45)',
+          backdropFilter: 'blur(3px)',
+          padding: 16,
+        }}>
+          <div style={{
+            background: 'var(--white)',
+            maxWidth: 480,
+            width: '100%',
+            padding: 28,
+            border: '1px solid var(--rule-dark)',
+            boxShadow: '6px 6px 0px var(--btn-shadow)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  background: 'var(--accent-bg)',
+                  color: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--rule)',
+                }}>
+                  <LinkIcon style={{ width: 16, height: 16 }} />
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                  Join with Invite Link
+                </h3>
               </div>
-              <h3 className="text-base font-bold text-slate-900">Join with Invite Link</h3>
+              <button
+                onClick={() => setShowJoinModal(false)}
+                className="btn-plain"
+                style={{ cursor: 'pointer', color: 'var(--ink-faint)' }}
+              >
+                <X style={{ width: 18, height: 18 }} />
+              </button>
             </div>
-            <p className="text-xs text-slate-500 mb-5">
-              Paste the invitation token or full invitation URL shared by an organisation admin.
+
+            <p style={{ fontSize: 13, color: 'var(--ink-mid)', marginBottom: 20, lineHeight: 1.5 }}>
+              Paste the invitation token or full invitation URL shared by an organisation administrator.
             </p>
 
-            <form onSubmit={handleJoinSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+            <form onSubmit={handleJoinSubmit}>
+              <div style={{ marginBottom: 20 }}>
+                <label className="kicker" style={{ marginBottom: 6 }}>
                   Invite Token or Link
                 </label>
                 <input
@@ -220,23 +371,46 @@ export default function OrgsListPage() {
                   placeholder="e.g. 9b93ab8... or http://.../orgs/join?token=..."
                   value={inviteTokenInput}
                   onChange={(e) => setInviteTokenInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: 13,
+                    border: '1px solid var(--rule-dark)',
+                    background: 'var(--paper)',
+                    color: 'var(--ink)',
+                    outline: 'none',
+                    fontFamily: 'var(--font-mono)',
+                  }}
                   required
                   autoFocus
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
                 <button
                   type="button"
                   onClick={() => setShowJoinModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="btn-plain"
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--ink-mid)',
+                    cursor: 'pointer',
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+                  className="btn-primary"
+                  style={{
+                    padding: '9px 18px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                  }}
                 >
                   Continue to Join
                 </button>
@@ -248,4 +422,3 @@ export default function OrgsListPage() {
     </OrgLayout>
   );
 }
-

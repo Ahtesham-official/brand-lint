@@ -537,7 +537,7 @@ export default function Home() {
 
   // Inside an organisation: Sidebar is VISIBLE
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
       <Sidebar
         brand={brand}
         currentUser={currentUser}
@@ -557,8 +557,8 @@ export default function Home() {
         onExitOrg={handleExitOrg}
       />
 
-      <main className="flex-1 min-w-0 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-6">{renderPage()}</div>
+      <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', background: 'var(--paper)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px' }}>{renderPage()}</div>
       </main>
 
       {/* Demo Guide Modal */}

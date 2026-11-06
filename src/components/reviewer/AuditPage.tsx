@@ -8,15 +8,15 @@ interface AuditPageProps {
 
 const ACTION_META: Record<
   AuditLog['action'],
-  { label: string; icon: React.ElementType; color: string }
+  { label: string; icon: React.ElementType }
 > = {
-  guideline_extracted: { label: 'Guideline Extracted', icon: FileText, color: 'text-indigo-600 bg-indigo-50' },
-  guideline_confirmed: { label: 'Guideline Confirmed', icon: CheckSquare, color: 'text-emerald-600 bg-emerald-50' },
-  rule_updated: { label: 'Rule Updated', icon: Shield, color: 'text-amber-600 bg-amber-50' },
-  submission_created: { label: 'Submission Created', icon: Upload, color: 'text-blue-600 bg-blue-50' },
-  submission_analyzed: { label: 'Submission Analyzed', icon: Search, color: 'text-violet-600 bg-violet-50' },
-  fix_applied: { label: 'Fix Applied', icon: Wrench, color: 'text-teal-600 bg-teal-50' },
-  submission_reviewed: { label: 'Submission Reviewed', icon: AlertCircle, color: 'text-rose-600 bg-rose-50' },
+  guideline_extracted: { label: 'Guideline Extracted', icon: FileText },
+  guideline_confirmed: { label: 'Guideline Confirmed', icon: CheckSquare },
+  rule_updated: { label: 'Rule Updated', icon: Shield },
+  submission_created: { label: 'Submission Created', icon: Upload },
+  submission_analyzed: { label: 'Submission Analyzed', icon: Search },
+  fix_applied: { label: 'Fix Applied', icon: Wrench },
+  submission_reviewed: { label: 'Submission Reviewed', icon: AlertCircle },
 };
 
 function formatTimestamp(dateStr: string): string {
@@ -29,65 +29,82 @@ function formatTimestamp(dateStr: string): string {
   });
 }
 
-function roleLabel(role: string): string {
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
-
 export const AuditPage: React.FC<AuditPageProps> = ({ auditLogs }) => {
   const sorted = [...auditLogs].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <h1 className="text-base font-semibold text-slate-900 mb-6">Audit Log</h1>
+    <div style={{ maxWidth: 860, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+      {/* ── Page Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
+        <div>
+          <div className="kicker-accent" style={{ marginBottom: 8 }}>Immutable Record</div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
+            Audit Log
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
+            {sorted.length} recorded events tracking brand guideline changes, analysis runs, and decisions.
+          </p>
+        </div>
+      </div>
 
       {sorted.length === 0 ? (
-        <p className="text-sm text-slate-400 py-4">No audit entries yet.</p>
+        <div style={{ padding: '64px 24px', textAlign: 'center', background: 'var(--white)', border: '1px solid var(--rule)' }}>
+          <p style={{ fontSize: 14, color: 'var(--ink-faint)', margin: 0 }}>No audit entries recorded yet.</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {sorted.map((log) => {
-            const meta = ACTION_META[log.action] ?? {
-              label: log.action,
-              icon: FileText,
-              color: 'text-slate-600 bg-slate-50',
-            };
-            const Icon = meta.icon;
+        <div style={{ background: 'var(--white)', border: '1px solid var(--rule)' }}>
+          <table className="ed-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>Actor</th>
+                <th>Entity Reference</th>
+                <th style={{ textAlign: 'right' }}>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((log) => {
+                const meta = ACTION_META[log.action] ?? {
+                  label: log.action,
+                  icon: FileText,
+                };
+                const Icon = meta.icon;
 
-            return (
-              <div
-                key={log.id}
-                className="flex items-start gap-3 py-3 px-4 border border-slate-200 rounded-lg bg-white"
-              >
-                {/* Icon */}
-                <div className={`mt-0.5 p-1.5 rounded-md ${meta.color}`}>
-                  <Icon className="w-3.5 h-3.5" />
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-slate-900">{meta.label}</span>
-                    <span className="text-xs text-slate-400">·</span>
-                    <span className="text-xs text-slate-600">
-                      {log.actor_name}{' '}
-                      <span className="text-slate-400">({roleLabel(log.actor_role)})</span>
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-400 mt-0.5">{formatTimestamp(log.created_at)}</p>
-
-                  {log.meta && Object.keys(log.meta).length > 0 && (
-                    <pre className="mt-2 text-[11px] leading-relaxed text-slate-500 bg-slate-50 border border-slate-100 rounded-md px-3 py-2 overflow-x-auto">
-                      {JSON.stringify(log.meta, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                return (
+                  <tr key={log.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 28, height: 28, background: 'var(--paper-mid)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Icon style={{ width: 13, height: 13, color: 'var(--ink-mid)' }} />
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{meta.label}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        <span style={{ fontSize: 13, color: 'var(--ink)' }}>{log.actor_name}</span>
+                        <span className="kicker" style={{ marginTop: 2 }}>{log.actor_role}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-light)' }}>
+                        {log.entity}:{log.entity_id.slice(0, 16)}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-faint)' }}>
+                      {formatTimestamp(log.created_at)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 };
+
+export default AuditPage;

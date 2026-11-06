@@ -3,11 +3,8 @@ import {
   Plus,
   Pencil,
   Trash2,
-  X,
   Search,
   ExternalLink,
-  AlertTriangle,
-  Database,
   Calendar,
 } from 'lucide-react';
 import { Fact, FactStatus } from '@/types';
@@ -19,10 +16,10 @@ interface FactsPageProps {
   onDeleteFact: (id: string) => void;
 }
 
-const statusBadge: Record<FactStatus, string> = {
-  active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  expired: 'bg-red-50 text-red-700 border-red-300 font-semibold',
-  deprecated: 'bg-slate-100 text-slate-600 border-slate-200',
+const STATUS_STYLE: Record<FactStatus, { bg: string; color: string; border: string; label: string }> = {
+  active:     { bg: '#f0fdf4', color: '#15803d', border: '#86efac', label: 'Active' },
+  expired:    { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5', label: 'Expired' },
+  deprecated: { bg: 'var(--paper-mid)', color: 'var(--ink-faint)', border: 'var(--rule)', label: 'Deprecated' },
 };
 
 const FactsPage: React.FC<FactsPageProps> = ({
@@ -121,158 +118,153 @@ const FactsPage: React.FC<FactsPageProps> = ({
   const expiredCount = facts.filter((f) => isExpired(f.expires_at) || f.status === 'expired').length;
 
   return (
-    <div className="min-h-full bg-slate-50/50 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+      {/* ── Page Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
         <div>
-          <h1 className="text-base font-semibold text-slate-900">Approved Fact Vault</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Verified, expiring claims referenced by AI check engine to prevent hallucinated/contradictory promises (PRD FR-5.1 - FR-5.4).
+          <div className="kicker-accent" style={{ marginBottom: 8 }}>Knowledge Base</div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
+            Approved Fact Vault
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
+            Verified, expiring claims checked by AI to prevent hallucinated or contradictory statements.
           </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
         >
-          <Plus className="w-3.5 h-3.5" />
-          Add Fact (FR-5.1)
+          <Plus style={{ width: 14, height: 14 }} /> Add Fact Record
         </button>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            All ({facts.length})
-          </button>
-          <button
-            onClick={() => setFilter('active')}
-            className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors ${
-              filter === 'active'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Active
-          </button>
-          <button
-            onClick={() => setFilter('expired')}
-            className={`px-3 py-1.5 text-xs rounded-full font-medium transition-colors ${
-              filter === 'expired'
-                ? 'bg-red-600 text-white shadow-sm'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            Expired {expiredCount > 0 && `(${expiredCount})`}
-          </button>
+      {/* ── Filter and Search ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(['all', 'active', 'expired'] as const).map((tab) => {
+            const isActive = filter === tab;
+            const count = tab === 'all' ? facts.length : tab === 'active' ? facts.length - expiredCount : expiredCount;
+            return (
+              <button
+                key={tab}
+                onClick={() => setFilter(tab)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '7px 16px',
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 400,
+                  cursor: 'pointer',
+                  background: isActive ? 'var(--ink)' : 'var(--white)',
+                  color: isActive ? 'var(--white)' : 'var(--ink-mid)',
+                  border: `1px solid ${isActive ? 'var(--ink)' : 'var(--rule)'}`,
+                  textTransform: 'capitalize',
+                  transition: 'all 0.1s',
+                }}
+              >
+                <span>{tab}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.8 }}>({count})</span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative w-64">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+        <div style={{ position: 'relative', width: 280 }}>
+          <Search style={{ width: 14, height: 14, color: 'var(--ink-faint)', position: 'absolute', left: 12, top: 12 }} />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search claims, sources..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{
+              width: '100%',
+              padding: '9px 12px 9px 34px',
+              fontSize: 13,
+              border: '1px solid var(--rule)',
+              background: 'var(--white)',
+              color: 'var(--ink)',
+              outline: 'none',
+              fontFamily: 'var(--font-sans)',
+            }}
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      {/* ── Table ── */}
+      <div style={{ background: 'var(--white)', border: '1px solid var(--rule)' }}>
         {filteredFacts.length === 0 ? (
-          <div className="px-5 py-12 text-center text-xs text-slate-400">
-            No matching facts in the vault.
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <p style={{ fontSize: 14, color: 'var(--ink-faint)' }}>No matching facts in the vault.</p>
           </div>
         ) : (
-          <table className="w-full text-left">
+          <table className="ed-table">
             <thead>
-              <tr className="border-b border-slate-200 text-xs text-slate-500 bg-slate-50/70">
-                <th className="px-4 py-3 font-semibold">Verified Claim</th>
-                <th className="px-4 py-3 font-semibold">Source Document</th>
-                <th className="px-4 py-3 font-semibold">Category</th>
-                <th className="px-4 py-3 font-semibold">Expires At (FR-5.2)</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+              <tr>
+                <th>Verified Claim</th>
+                <th>Source Document</th>
+                <th>Category</th>
+                <th>Expires At</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {filteredFacts.map((fact) => {
                 const expired = isExpired(fact.expires_at) || fact.status === 'expired';
-                const displayStatus: FactStatus = expired ? 'expired' : fact.status;
+                const st = STATUS_STYLE[expired ? 'expired' : fact.status] || STATUS_STYLE.active;
 
                 return (
-                  <tr
-                    key={fact.id}
-                    className={`hover:bg-slate-50/70 transition-colors ${
-                      expired ? 'bg-red-50/30' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-3 text-xs text-slate-900 font-medium max-w-sm">
-                      <div className="flex items-start gap-2">
-                        <Database className="w-3.5 h-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <span>{fact.claim}</span>
-                          {fact.notes && (
-                            <p className="text-[11px] text-slate-400 mt-0.5">{fact.notes}</p>
-                          )}
+                  <tr key={fact.id}>
+                    <td>
+                      <div style={{ maxWidth: 360 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>
+                          {fact.claim}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-600 max-w-[200px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate">{fact.source_document}</span>
-                        {fact.source_url && (
-                          <a
-                            href={fact.source_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-slate-400 hover:text-blue-600"
-                            title="Open source"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                        {fact.notes && (
+                          <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 4 }}>
+                            {fact.notes}
+                          </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px]">
+                    <td>
+                      <div style={{ fontSize: 13, color: 'var(--ink-mid)' }}>{fact.source_document}</div>
+                      {fact.source_url && (
+                        <a
+                          href={fact.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--accent)', marginTop: 2, textDecoration: 'none' }}
+                        >
+                          Source link <ExternalLink style={{ width: 10, height: 10 }} />
+                        </a>
+                      )}
+                    </td>
+                    <td>
+                      <span className="badge" style={{ background: 'var(--paper-mid)', color: 'var(--ink-mid)', borderColor: 'var(--rule)' }}>
                         {fact.category || 'General'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs">
-                      <span
-                        className={`inline-flex items-center gap-1 font-mono ${
-                          expired ? 'text-red-700 font-semibold' : 'text-slate-600'
-                        }`}
-                      >
-                        <Calendar className="w-3 h-3" />
-                        {new Date(fact.expires_at).toLocaleDateString()}
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: expired ? '#b91c1c' : 'var(--ink-mid)' }}>
+                        <Calendar style={{ width: 12, height: 12 }} />
+                        {new Date(fact.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="badge" style={{ background: st.bg, color: st.color, borderColor: st.border }}>
+                        {st.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 text-[11px] rounded-full border uppercase tracking-wider ${statusBadge[displayStatus]}`}
-                      >
-                        {displayStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center gap-1 justify-end">
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
                         <button
                           onClick={() => handleOpenEdit(fact)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          style={{ padding: '5px 10px', background: 'transparent', border: '1px solid var(--rule)', cursor: 'pointer', color: 'var(--ink-mid)' }}
                           title="Edit fact"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Pencil style={{ width: 12, height: 12 }} />
                         </button>
                         <button
                           onClick={() => {
@@ -280,10 +272,10 @@ const FactsPage: React.FC<FactsPageProps> = ({
                               onDeleteFact(fact.id);
                             }
                           }}
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          style={{ padding: '5px 10px', background: '#fef2f2', border: '1px solid #fca5a5', cursor: 'pointer', color: '#b91c1c' }}
                           title="Delete fact"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 style={{ width: 12, height: 12 }} />
                         </button>
                       </div>
                     </td>
@@ -295,214 +287,106 @@ const FactsPage: React.FC<FactsPageProps> = ({
         )}
       </div>
 
-      {/* Add Fact Modal */}
+      {/* ── Add Fact Modal ── */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.55)', padding: 24 }}>
+          <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Add Fact Vault Record</h3>
-                <p className="text-xs text-slate-500">Document a verified claim with explicit source and expiry</p>
+                <div className="kicker-accent" style={{ marginBottom: 4 }}>Fact Vault</div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Add Verified Claim</h3>
               </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
 
-            <form onSubmit={handleAdd} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleAdd} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Verified Claim Statement</label>
-                <textarea
-                  value={claim}
-                  onChange={(e) => setClaim(e.target.value)}
-                  placeholder="e.g. 12-month standard manufacturer warranty on all audio hardware"
-                  rows={2}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+                <label className="kicker" style={{ marginBottom: 6 }}>Verified Claim Statement *</label>
+                <textarea rows={2} value={claim} onChange={(e) => setClaim(e.target.value)} placeholder="e.g. Apex 500 contains 100% recycled aerospace aluminum." required autoFocus style={{ ...iStyle(), resize: 'vertical' }} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Source Document</label>
-                  <input
-                    type="text"
-                    value={sourceDoc}
-                    onChange={(e) => setSourceDoc(e.target.value)}
-                    placeholder="e.g. Product Warranty Policy 2024"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+                  <label className="kicker" style={{ marginBottom: 6 }}>Category</label>
+                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Hardware, Warranty, Green..." style={iStyle()} />
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Category</label>
-                  <input
-                    type="text"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    placeholder="e.g. Warranty & Support"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1">Expiry Date (FR-5.2)</label>
-                  <input
-                    type="date"
-                    value={expiresAt}
-                    onChange={(e) => setExpiresAt(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1">Source URL (Optional)</label>
-                  <input
-                    type="url"
-                    value={sourceUrl}
-                    onChange={(e) => setSourceUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <label className="kicker" style={{ marginBottom: 6 }}>Expires On *</label>
+                  <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} required style={iStyle()} />
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Internal Notes</label>
-                <input
-                  type="text"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Standard across all regional channels"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="kicker" style={{ marginBottom: 6 }}>Source Document or Citation *</label>
+                <input type="text" value={sourceDoc} onChange={(e) => setSourceDoc(e.target.value)} placeholder="e.g. Materials Certification Report 2024" required style={iStyle()} />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
-                >
-                  Save Fact
-                </button>
+              <div>
+                <label className="kicker" style={{ marginBottom: 6 }}>Source URL (optional)</label>
+                <input type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." style={iStyle()} />
+              </div>
+
+              <div>
+                <label className="kicker" style={{ marginBottom: 6 }}>Internal Notes (optional)</label>
+                <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Audit cert ref, legal approval notes..." style={{ ...iStyle(), resize: 'vertical' }} />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
+                <button type="button" onClick={() => setShowAddModal(false)} style={ghostBtn()}>Cancel</button>
+                <button type="submit" disabled={!claim.trim() || !sourceDoc.trim() || !expiresAt} style={solidBtn(!claim.trim() || !sourceDoc.trim() || !expiresAt)}>Add Fact</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Edit Fact Modal */}
+      {/* ── Edit Fact Modal ── */}
       {editingFact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.55)', padding: 24 }}>
+          <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Edit Fact Vault Record</h3>
-                <p className="text-xs text-slate-500">Update verified claim statement or extend expiry</p>
+                <div className="kicker-accent" style={{ marginBottom: 4 }}>Fact Vault</div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Edit Claim Record</h3>
               </div>
-              <button
-                onClick={() => setEditingFact(null)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <button onClick={() => setEditingFact(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveEdit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Claim Statement</label>
-                <textarea
-                  value={editClaim}
-                  onChange={(e) => setEditClaim(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+                <label className="kicker" style={{ marginBottom: 6 }}>Verified Claim Statement</label>
+                <textarea rows={2} value={editClaim} onChange={(e) => setEditClaim(e.target.value)} required style={{ ...iStyle(), resize: 'vertical' }} />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Source Document</label>
-                  <input
-                    type="text"
-                    value={editSourceDoc}
-                    onChange={(e) => setEditSourceDoc(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+                  <label className="kicker" style={{ marginBottom: 6 }}>Category</label>
+                  <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} style={iStyle()} />
                 </div>
                 <div>
-                  <label className="block font-medium text-slate-700 mb-1">Category</label>
-                  <input
-                    type="text"
-                    value={editCategory}
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1">Expiry Date</label>
-                  <input
-                    type="date"
-                    value={editExpiresAt}
-                    onChange={(e) => setEditExpiresAt(e.target.value)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-slate-700 mb-1">Status</label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value as FactStatus)}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="active">Active</option>
-                    <option value="expired">Expired</option>
-                    <option value="deprecated">Deprecated</option>
-                  </select>
+                  <label className="kicker" style={{ marginBottom: 6 }}>Expires On</label>
+                  <input type="date" value={editExpiresAt} onChange={(e) => setEditExpiresAt(e.target.value)} required style={iStyle()} />
                 </div>
               </div>
 
               <div>
-                <label className="block font-medium text-slate-700 mb-1">Source URL</label>
-                <input
-                  type="url"
-                  value={editSourceUrl}
-                  onChange={(e) => setEditSourceUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="kicker" style={{ marginBottom: 6 }}>Source Document</label>
+                <input type="text" value={editSourceDoc} onChange={(e) => setEditSourceDoc(e.target.value)} required style={iStyle()} />
               </div>
 
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingFact(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm"
-                >
-                  Save Changes
-                </button>
+              <div>
+                <label className="kicker" style={{ marginBottom: 6 }}>Source URL</label>
+                <input type="url" value={editSourceUrl} onChange={(e) => setEditSourceUrl(e.target.value)} style={iStyle()} />
+              </div>
+
+              <div>
+                <label className="kicker" style={{ marginBottom: 6 }}>Internal Notes</label>
+                <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} style={{ ...iStyle(), resize: 'vertical' }} />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
+                <button type="button" onClick={() => setEditingFact(null)} style={ghostBtn()}>Cancel</button>
+                <button type="submit" style={solidBtn()}>Save Changes</button>
               </div>
             </form>
           </div>
@@ -511,5 +395,43 @@ const FactsPage: React.FC<FactsPageProps> = ({
     </div>
   );
 };
+
+function iStyle(): React.CSSProperties {
+  return {
+    width: '100%',
+    padding: '9px 12px',
+    fontSize: 13,
+    border: '1px solid var(--rule)',
+    background: 'var(--paper)',
+    color: 'var(--ink)',
+    outline: 'none',
+    fontFamily: 'var(--font-sans)',
+  };
+}
+
+function ghostBtn(): React.CSSProperties {
+  return {
+    padding: '9px 20px',
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: 'pointer',
+    background: 'transparent',
+    color: 'var(--ink-mid)',
+    border: '1px solid var(--rule)',
+  };
+}
+
+function solidBtn(disabled = false): React.CSSProperties {
+  return {
+    padding: '9px 22px',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    background: 'var(--btn-primary)',
+    color: 'var(--white)',
+    border: '1px solid var(--rule-dark)',
+    opacity: disabled ? 0.4 : 1,
+  };
+}
 
 export default FactsPage;

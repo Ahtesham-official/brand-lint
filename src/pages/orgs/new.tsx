@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Building2, ArrowLeft, Loader2, Sparkles, ShieldCheck } from 'lucide-react';
+import { Building2, ArrowLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { OrgLayout } from '@/components/layout/OrgLayout';
 import { SEEDED_USERS } from '@/data/seedData';
 
@@ -62,30 +62,52 @@ export default function NewOrgPage() {
       subtitle="Establish a new brand governance boundary with isolated guidelines, assets, and roles."
       breadcrumbs={[{ label: 'New Organisation' }]}
     >
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm">
-          <div className="flex items-center gap-3 pb-6 mb-6 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Building2 className="w-5 h-5" />
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
+        <div style={{
+          background: 'var(--white)',
+          border: '1px solid var(--rule)',
+          padding: '32px 36px',
+          boxShadow: '3px 3px 0px var(--btn-shadow)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 20, marginBottom: 24, borderBottom: '1px solid var(--rule)' }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              background: 'var(--ink)',
+              color: '#fef3c7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Building2 style={{ width: 18, height: 18 }} />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900">Organisation Details</h2>
-              <p className="text-xs text-slate-500">
-                You will automatically become the Admin of this organisation.
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Organisation Details
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--ink-mid)', margin: '2px 0 0' }}>
+                You will automatically become the Admin of this brand organisation.
               </p>
             </div>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+            <div style={{
+              marginBottom: 20,
+              padding: '12px 16px',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              color: '#991b1b',
+              fontSize: 13,
+            }}>
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Organisation Name <span className="text-red-500">*</span>
+              <label className="kicker" style={{ marginBottom: 6 }}>
+                Organisation Name *
               </label>
               <input
                 type="text"
@@ -93,46 +115,102 @@ export default function NewOrgPage() {
                 placeholder="e.g. Apex Global Brands, Acme Media Group"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  fontSize: 14,
+                  border: '1px solid var(--rule-dark)',
+                  background: 'var(--paper)',
+                  color: 'var(--ink)',
+                  outline: 'none',
+                  fontFamily: 'var(--font-sans)',
+                }}
               />
-              <p className="text-[11px] text-slate-400 mt-1">
-                The public name of your organisation shown to team members.
+              <p style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 4, margin: '4px 0 0' }}>
+                The public title of your organisation displayed across teams and dashboards.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Description <span className="text-slate-400 font-normal">(Optional)</span>
+              <label className="kicker" style={{ marginBottom: 6 }}>
+                Description (Optional)
               </label>
               <textarea
                 rows={3}
                 placeholder="Brief description of the brand assets, division, or business unit governed within this container..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-slate-900 resize-none"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  fontSize: 13,
+                  border: '1px solid var(--rule-dark)',
+                  background: 'var(--paper)',
+                  color: 'var(--ink)',
+                  outline: 'none',
+                  resize: 'none',
+                  fontFamily: 'var(--font-sans)',
+                  lineHeight: 1.5,
+                }}
               />
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-start gap-3 text-xs text-slate-600">
-              <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div style={{
+              padding: '14px 16px',
+              background: 'var(--paper-mid)',
+              border: '1px solid var(--rule)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              fontSize: 12,
+              color: 'var(--ink-mid)',
+              lineHeight: 1.5,
+            }}>
+              <ShieldCheck style={{ width: 16, height: 16, color: 'var(--accent)', flexShrink: 0, marginTop: 1 }} />
               <div>
-                <span className="font-semibold text-slate-900">Role Notice:</span> As creator, you will hold the <code className="text-blue-700 font-semibold">admin</code> role. You can invite Creators and Reviewers with custom link expiration and usage limits.
+                <strong style={{ color: 'var(--ink)' }}>Role Notice:</strong> As creator, you will hold the <code style={{ fontFamily: 'var(--font-mono)', background: 'var(--paper-dark)', padding: '1px 5px', color: 'var(--ink)' }}>admin</code> role. You can invite Creators and Reviewers with custom token expiration and usage limits.
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+            <div style={{
+              paddingTop: 20,
+              marginTop: 10,
+              borderTop: '1px solid var(--rule)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 12,
+            }}>
               <Link
                 href="/orgs"
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                className="btn-plain"
+                style={{
+                  padding: '9px 16px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--ink-mid)',
+                  textDecoration: 'none',
+                }}
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={submitting || !name.trim()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+                className="btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 22px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: submitting || !name.trim() ? 'not-allowed' : 'pointer',
+                  opacity: submitting || !name.trim() ? 0.6 : 1,
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                }}
               >
-                {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {submitting && <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />}
                 <span>Create Organisation</span>
               </button>
             </div>
@@ -142,4 +220,3 @@ export default function NewOrgPage() {
     </OrgLayout>
   );
 }
-

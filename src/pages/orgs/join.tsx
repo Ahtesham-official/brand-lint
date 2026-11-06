@@ -6,8 +6,8 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Shield,
   ArrowRight,
+  Shield,
   Clock,
   Users,
 } from 'lucide-react';
@@ -15,10 +15,10 @@ import { OrgLayout } from '@/components/layout/OrgLayout';
 import { OrganizationInvite, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
 
-const ROLE_BADGE: Record<OrgRole, string> = {
-  admin: 'bg-blue-100 text-blue-700 border-blue-200',
-  creator: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  reviewer: 'bg-amber-100 text-amber-700 border-amber-200',
+const ROLE_STYLES: Record<OrgRole, { bg: string; text: string; border: string }> = {
+  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
 
 export default function JoinOrgPage() {
@@ -100,7 +100,6 @@ export default function JoinOrgPage() {
         throw new Error(data.error || 'Failed to join organisation');
       }
 
-      // Redirect immediately to the organization
       router.push(`/orgs/${data.orgId}`);
     } catch (err: any) {
       setError(err.message || 'Unable to join organisation.');
@@ -129,95 +128,197 @@ export default function JoinOrgPage() {
       subtitle="Accept an invitation to collaborate within a brand governance workspace."
       breadcrumbs={[{ label: 'Join' }]}
     >
-      <div className="max-w-md mx-auto">
+      <div style={{ maxWidth: 480, margin: '0 auto' }}>
         {inspecting ? (
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-8 text-center shadow-sm">
-            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
-            <p className="text-xs font-semibold text-slate-700">Verifying invitation...</p>
+          <div style={{
+            background: 'var(--white)',
+            border: '1px solid var(--rule)',
+            padding: 40,
+            textAlign: 'center',
+            boxShadow: '3px 3px 0px var(--btn-shadow)',
+          }}>
+            <Loader2 style={{ width: 28, height: 28, color: 'var(--accent)', margin: '0 auto 12px' }} className="animate-spin" />
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>Verifying invitation token...</p>
           </div>
         ) : !currentToken ? (
-          /* Manual Token Input Form */
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-              <Building2 className="w-5 h-5" />
+          <div style={{
+            background: 'var(--white)',
+            border: '1px solid var(--rule)',
+            padding: '32px 36px',
+            boxShadow: '3px 3px 0px var(--btn-shadow)',
+          }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              background: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+              border: '1px solid var(--rule)',
+            }}>
+              <Building2 style={{ width: 18, height: 18 }} />
             </div>
-            <h2 className="text-base font-bold text-slate-900 mb-1">Enter Invitation</h2>
-            <p className="text-xs text-slate-500 mb-5">
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 6px' }}>
+              Enter Invitation
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--ink-mid)', margin: '0 0 20px', lineHeight: 1.5 }}>
               Paste your invitation token or full invitation link below to join.
             </p>
 
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-              <div>
+            <form onSubmit={handleManualSubmit}>
+              <div style={{ marginBottom: 16 }}>
                 <input
                   type="text"
                   placeholder="Invite token or URL..."
                   value={manualToken}
                   onChange={(e) => setManualToken(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-slate-900"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    fontSize: 13,
+                    border: '1px solid var(--rule-dark)',
+                    background: 'var(--paper)',
+                    color: 'var(--ink)',
+                    outline: 'none',
+                    fontFamily: 'var(--font-mono)',
+                  }}
                   required
                 />
               </div>
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                }}
               >
                 Inspect Invitation
               </button>
             </form>
           </div>
         ) : invalidReason ? (
-          /* Invalid Invitation State */
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
-            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto mb-4">
-              <XCircle className="w-6 h-6" />
+          <div style={{
+            background: 'var(--white)',
+            border: '1px solid var(--rule)',
+            padding: '36px 32px',
+            textAlign: 'center',
+            boxShadow: '3px 3px 0px var(--btn-shadow)',
+          }}>
+            <div style={{
+              width: 44,
+              height: 44,
+              background: '#fee2e2',
+              color: '#dc2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <XCircle style={{ width: 22, height: 22 }} />
             </div>
-            <h2 className="text-base font-bold text-slate-900 mb-1">Invalid Invitation</h2>
-            <p className="text-xs text-red-600 mb-6">{invalidReason}</p>
-            <div className="flex items-center justify-center gap-3">
-              <Link
-                href="/orgs"
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-              >
-                Back to Organisations
-              </Link>
-            </div>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: '0 0 6px' }}>
+              Invalid Invitation
+            </h2>
+            <p style={{ fontSize: 13, color: '#dc2626', margin: '0 0 24px' }}>{invalidReason}</p>
+            <Link
+              href="/orgs"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '9px 18px',
+                fontSize: 12,
+                fontWeight: 700,
+                background: 'var(--paper-mid)',
+                color: 'var(--ink)',
+                border: '1px solid var(--rule-dark)',
+                textDecoration: 'none',
+              }}
+            >
+              Back to Organisations
+            </Link>
           </div>
         ) : invite ? (
-          /* Valid Invitation Card */
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm">
-            <div className="text-center mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-3 shadow-sm">
-                <Building2 className="w-6 h-6" />
+          <div style={{
+            background: 'var(--white)',
+            border: '1px solid var(--rule)',
+            padding: '32px 36px',
+            boxShadow: '3px 3px 0px var(--btn-shadow)',
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                background: 'var(--ink)',
+                color: '#fef3c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 14px',
+              }}>
+                <Building2 style={{ width: 22, height: 22 }} />
               </div>
-              <span className="text-[10px] font-bold tracking-wider uppercase text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
+              <span className="kicker-accent" style={{ marginBottom: 4 }}>
                 Workspace Invite
               </span>
-              <h2 className="text-lg font-bold text-slate-900 mt-2">{invite.org_name}</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                You have been invited to collaborate in this organisation.
+              <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 900, color: 'var(--ink)', margin: '6px 0 4px', letterSpacing: '-0.01em' }}>
+                {invite.org_name}
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--ink-mid)', margin: 0 }}>
+                You have been invited to collaborate in this brand governance container.
               </p>
             </div>
 
             {error && (
-              <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+              <div style={{
+                marginBottom: 20,
+                padding: '12px 16px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                fontSize: 13,
+              }}>
                 {error}
               </div>
             )}
 
-            <div className="space-y-3 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/70 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Assigned Role</span>
+            <div style={{
+              background: 'var(--paper)',
+              border: '1px solid var(--rule)',
+              padding: '16px 20px',
+              marginBottom: 24,
+              fontSize: 13,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--ink-mid)' }}>Assigned Role</span>
                 <span
-                  className={`font-bold px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wider border ${
-                    ROLE_BADGE[invite.role]
-                  }`}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    background: ROLE_STYLES[invite.role]?.bg || '#fef3c7',
+                    color: ROLE_STYLES[invite.role]?.text || '#92400e',
+                    border: `1px solid ${ROLE_STYLES[invite.role]?.border || '#fcd34d'}`,
+                  }}
                 >
                   {invite.role}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Expires</span>
-                <span className="text-slate-700 font-medium">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--ink-mid)' }}>Expires</span>
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
                   {new Date(invite.expires_at).toLocaleDateString()} at{' '}
                   {new Date(invite.expires_at).toLocaleTimeString([], {
                     hour: '2-digit',
@@ -225,9 +326,9 @@ export default function JoinOrgPage() {
                   })}
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500">Remaining Uses</span>
-                <span className="text-slate-700 font-medium">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--ink-mid)' }}>Remaining Uses</span>
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
                   {invite.max_uses - invite.uses_count} of {invite.max_uses}
                 </span>
               </div>
@@ -236,17 +337,29 @@ export default function JoinOrgPage() {
             <button
               onClick={handleJoin}
               disabled={joining}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+              className="btn-primary"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '11px 18px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: joining ? 'not-allowed' : 'pointer',
+                boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+              }}
             >
               {joining ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
                   <span>Joining Workspace...</span>
                 </>
               ) : (
                 <>
                   <span>Accept Invitation & Join</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight style={{ width: 15, height: 15 }} />
                 </>
               )}
             </button>
@@ -256,4 +369,3 @@ export default function JoinOrgPage() {
     </OrgLayout>
   );
 }
-

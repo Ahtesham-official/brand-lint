@@ -1,17 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
-  Upload,
-  FileText,
-  X,
-  Loader2,
-  FileUp,
-  Sparkles,
-  CheckCircle2,
-  Eye,
-  Split,
-  Trash2,
-  ToggleLeft,
-  ToggleRight,
+  Upload, FileText, X, Loader2, FileUp, Sparkles,
+  CheckCircle2, Split, Trash2, ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import { Guideline, Rule, GuidelineStatus } from '@/types';
 import { RAW_GUIDELINE_SAMPLE } from '@/data/seedData';
@@ -28,265 +18,197 @@ interface GuidelinesPageProps {
   onToggleGuideline?: (id: string, enabled: boolean) => Promise<void>;
 }
 
-const statusColor: Record<GuidelineStatus, string> = {
-  pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  extracted: 'bg-blue-50 text-blue-700 border-blue-200',
-  confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  disabled: 'bg-slate-100 text-slate-500 border-slate-200',
+const STATUS: Record<GuidelineStatus, { bg: string; color: string; border: string; label: string }> = {
+  pending:   { bg: '#fef3c7', color: '#92400e', border: '#fcd34d',  label: 'Pending' },
+  extracted: { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe',  label: 'Extracted' },
+  confirmed: { bg: '#f0fdf4', color: '#15803d', border: '#86efac',  label: 'Confirmed' },
+  disabled:  { bg: 'var(--paper-mid)', color: 'var(--ink-faint)', border: 'var(--rule)', label: 'Disabled' },
 };
 
 const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
-  guidelines,
-  rules,
-  onAddGuideline,
-  onExtractRules,
-  onConfirmGuideline,
-  onSelectVersion,
-  onDeleteGuideline,
-  onToggleGuideline,
+  guidelines, rules, onAddGuideline, onExtractRules,
+  onConfirmGuideline, onSelectVersion, onDeleteGuideline, onToggleGuideline,
 }) => {
-  const [showModal, setShowModal] = useState(false);
-  const [selectedGuideline, setSelectedGuideline] = useState<Guideline | null>(null);
-  const [filename, setFilename] = useState('Apex_Brand_Guidelines_v2.4.pdf');
-  const [rawText, setRawText] = useState(RAW_GUIDELINE_SAMPLE);
-  const [extractingId, setExtractingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showModal, setShowModal]           = useState(false);
+  const [selectedGuideline, setSelected]    = useState<Guideline | null>(null);
+  const [filename, setFilename]             = useState('Apex_Brand_Guidelines_v2.4.pdf');
+  const [rawText, setRawText]               = useState(RAW_GUIDELINE_SAMPLE);
+  const [extractingId, setExtractingId]     = useState<string | null>(null);
+  const [deletingId, setDeletingId]         = useState<string | null>(null);
+  const [togglingId, setTogglingId]         = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async () => {
     if (!filename.trim() || !rawText.trim()) return;
     await onAddGuideline(filename.trim(), rawText.trim());
-    setFilename('');
-    setRawText('');
-    setShowModal(false);
+    setFilename(''); setRawText(''); setShowModal(false);
   };
 
   const handleExtract = async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setExtractingId(id);
-    try {
-      await onExtractRules(id);
-    } finally {
-      setExtractingId(null);
-    }
+    e?.stopPropagation(); setExtractingId(id);
+    try { await onExtractRules(id); } finally { setExtractingId(null); }
   };
 
   const handleDelete = async (gl: Guideline, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!onDeleteGuideline) return;
-    if (!window.confirm(`Delete guideline "${gl.filename}" and all its rules? This cannot be undone.`)) return;
+    if (!onDeleteGuideline || !window.confirm(`Delete "${gl.filename}" and all its rules?`)) return;
     setDeletingId(gl.id);
-    try {
-      await onDeleteGuideline(gl.id);
-    } finally {
-      setDeletingId(null);
-    }
+    try { await onDeleteGuideline(gl.id); } finally { setDeletingId(null); }
   };
 
   const handleToggle = async (gl: Guideline, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!onToggleGuideline) return;
     setTogglingId(gl.id);
-    try {
-      await onToggleGuideline(gl.id, !(gl.enabled !== false));
-    } finally {
-      setTogglingId(null);
-    }
+    try { await onToggleGuideline(gl.id, !(gl.enabled !== false)); } finally { setTogglingId(null); }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
     setFilename(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      if (text) {
-        setRawText(text);
-      }
-    };
-    reader.readAsText(file);
+    const r = new FileReader();
+    r.onload = (ev) => { if (ev.target?.result) setRawText(ev.target.result as string); };
+    r.readAsText(file);
   };
 
-  const handleLoadSample = () => {
-    setFilename('Apex_Brand_Guidelines_v2.4.pdf');
-    setRawText(RAW_GUIDELINE_SAMPLE);
-  };
-
-  const rulesCountFor = (glId: string) =>
-    rules.filter((r) => r.guideline_id === glId).length;
+  const rulesFor = (id: string) => rules.filter((r) => r.guideline_id === id).length;
 
   return (
-    <div className="min-h-full bg-slate-50/50 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+
+      {/* ── Page header ────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
         <div>
-          <h1 className="text-base font-semibold text-slate-900">Brand Guidelines Ingestion</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Click on any guideline to view what the AI understood, inspect rules, and compare original vs AI Enhanced versions.
+          <div className="kicker-accent" style={{ marginBottom: 8 }}>Brand Compliance System</div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
+            Guideline Ingestion
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
+            Upload brand guidelines — AI extracts enforceable rules automatically.
           </p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
         >
-          <Upload className="w-3.5 h-3.5" />
-          Upload Guideline (FR-3.1)
+          <Upload style={{ width: 14, height: 14 }} /> Upload Guideline
         </button>
       </div>
 
-      {/* Guidelines list */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      {/* ── Stats ──────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 }}>
+        {[
+          { label: 'Total Documents',  value: guidelines.length },
+          { label: 'Active Rules',     value: rules.filter(r => r.status === 'confirmed').length },
+          { label: 'Confirmed Docs',   value: guidelines.filter(g => g.status === 'confirmed').length },
+        ].map((s) => (
+          <div key={s.label} style={{ padding: '20px 22px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
+            <div className="kicker" style={{ marginBottom: 6 }}>{s.label}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 32, fontWeight: 900, color: 'var(--ink)', lineHeight: 1 }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Table ──────────────────────────────── */}
+      <div style={{ background: 'var(--white)', border: '1px solid var(--rule)' }}>
         {guidelines.length === 0 ? (
-          <div className="px-5 py-12 text-center text-xs text-slate-400">
-            No guidelines uploaded yet. Click &quot;Upload Guideline&quot; to begin.
+          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
+            <FileText style={{ width: 32, height: 32, color: 'var(--rule)', margin: '0 auto 12px' }} />
+            <div className="kicker" style={{ marginBottom: 6, textAlign: 'center' }}>No Guidelines Yet</div>
+            <p style={{ fontSize: 14, color: 'var(--ink-faint)' }}>Upload a guideline document to begin.</p>
           </div>
         ) : (
-          <table className="w-full text-left">
+          <table className="ed-table">
             <thead>
-              <tr className="border-b border-slate-200 text-xs text-slate-500 bg-slate-50/70">
-                <th className="px-4 py-3 font-semibold">Document (Click to inspect)</th>
-                <th className="px-4 py-3 font-semibold">Uploaded</th>
-                <th className="px-4 py-3 font-semibold">Selected Version</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold">Enabled</th>
-                <th className="px-4 py-3 font-semibold text-right">Rules</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
+              <tr>
+                <th>Document</th>
+                <th>Uploaded</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'right' }}>Rules</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody>
               {guidelines.map((gl) => {
                 const selectedVer = gl.selected_version || 'original';
-                const isEnabled = gl.enabled !== false;
-                const isDisabled = gl.status === 'disabled' || !isEnabled;
+                const isEnabled   = gl.enabled !== false;
+                const st          = STATUS[isEnabled ? gl.status : 'disabled'] ?? STATUS.disabled;
 
                 return (
-                  <tr
-                    key={gl.id}
-                    onClick={() => setSelectedGuideline(gl)}
-                    className={`transition-colors cursor-pointer group ${isDisabled ? 'opacity-60' : 'hover:bg-blue-50/40'}`}
-                    title="Click to view AI comprehension and compare versions"
-                  >
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${isDisabled ? 'bg-slate-100 text-slate-400' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                          <FileText className="w-4 h-4" />
+                  <tr key={gl.id} onClick={() => setSelected(gl)} style={{ cursor: 'pointer', opacity: isEnabled ? 1 : 0.6 }}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, background: isEnabled ? 'var(--paper-mid)' : 'var(--paper-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid var(--rule)' }}>
+                          <FileText style={{ width: 15, height: 15, color: isEnabled ? 'var(--ink-mid)' : 'var(--ink-faint)' }} />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                              {gl.filename}
-                            </span>
-                            <Eye className="w-3 h-3 text-slate-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>{gl.filename}</div>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-faint)', marginTop: 2 }}>
+                            {gl.raw_text ? `${gl.raw_text.length.toLocaleString()} chars` : '—'}
                           </div>
-                          <span className="text-[11px] text-slate-400 font-mono block">
-                            {gl.raw_text ? `${gl.raw_text.length} chars` : 'Uploaded Document'}
-                          </span>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-xs text-slate-500">
-                      {new Date(gl.created_at).toLocaleDateString()}
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-light)' }}>
+                      {new Date(gl.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 text-[10px] font-bold rounded-full border uppercase tracking-wider ${
-                          selectedVer === 'enhanced'
-                            ? 'bg-purple-50 text-purple-700 border-purple-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
-                        }`}
-                      >
+                    <td>
+                      <span className="badge" style={{ background: selectedVer === 'enhanced' ? '#fef3c7' : 'transparent', color: selectedVer === 'enhanced' ? '#92400e' : 'var(--ink-faint)', borderColor: selectedVer === 'enhanced' ? '#fcd34d' : 'var(--rule)' }}>
                         {selectedVer}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 text-[11px] font-medium rounded-full border uppercase tracking-wider ${statusColor[gl.status] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}
-                      >
-                        {isDisabled && gl.status !== 'disabled' ? 'disabled' : gl.status}
+                    <td>
+                      <span className="badge" style={{ background: st.bg, color: st.color, borderColor: st.border }}>
+                        {st.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3.5 text-xs text-slate-700 font-medium text-right">
-                      {rulesCountFor(gl.id)}
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--ink)' }}>
+                      {rulesFor(gl.id)}
                     </td>
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-                        {/* Review & Compare */}
-                        <button
-                          onClick={() => setSelectedGuideline(gl)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                          title="Review AI comprehension & compare versions"
-                        >
-                          <Split className="w-3 h-3 text-purple-600" />
-                          Review
-                        </button>
+                    <td style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
+                        {/* Review */}
+                        <Chip onClick={() => setSelected(gl)} icon={<Split style={{ width: 11, height: 11 }} />}>Review</Chip>
 
-                        {/* Extract Rules (pending only) */}
+                        {/* Extract */}
                         {gl.status === 'pending' && isEnabled && (
-                          <button
-                            onClick={(e) => handleExtract(gl.id, e)}
-                            disabled={extractingId === gl.id}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-                          >
-                            {extractingId === gl.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                            )}
-                            {extractingId === gl.id ? 'Extracting…' : 'Extract'}
-                          </button>
+                          <Chip onClick={(e) => handleExtract(gl.id, e)} color="info" icon={
+                            extractingId === gl.id
+                              ? <Loader2 style={{ width: 11, height: 11 }} className="animate-spin" />
+                              : <Sparkles style={{ width: 11, height: 11 }} />
+                          }>
+                            {extractingId === gl.id ? 'Working…' : 'Extract'}
+                          </Chip>
                         )}
 
-                        {/* Confirm Rules (extracted only) */}
+                        {/* Confirm */}
                         {gl.status === 'extracted' && isEnabled && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); onConfirmGuideline(gl.id); }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold border border-emerald-300 text-emerald-800 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <Chip onClick={(e) => { e.stopPropagation(); onConfirmGuideline(gl.id); }} color="success" icon={<CheckCircle2 style={{ width: 11, height: 11 }} />}>
                             Confirm
-                          </button>
+                          </Chip>
                         )}
 
-                        {/* Enable / Disable toggle */}
+                        {/* Toggle */}
                         {onToggleGuideline && (
-                          <button
+                          <Chip
                             onClick={(e) => handleToggle(gl, e)}
-                            disabled={togglingId === gl.id}
-                            title={isEnabled ? 'Disable this guideline' : 'Enable this guideline'}
-                            className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 ${
-                              isEnabled
-                                ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                                : 'text-slate-500 bg-slate-100 border-slate-200 hover:bg-slate-200'
-                            }`}
+                            color={isEnabled ? 'success' : 'default'}
+                            icon={togglingId === gl.id
+                              ? <Loader2 style={{ width: 11, height: 11 }} className="animate-spin" />
+                              : isEnabled ? <ToggleRight style={{ width: 11, height: 11 }} /> : <ToggleLeft style={{ width: 11, height: 11 }} />}
                           >
-                            {togglingId === gl.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : isEnabled ? (
-                              <ToggleRight className="w-3.5 h-3.5" />
-                            ) : (
-                              <ToggleLeft className="w-3.5 h-3.5" />
-                            )}
                             {isEnabled ? 'On' : 'Off'}
-                          </button>
+                          </Chip>
                         )}
 
                         {/* Delete */}
                         {onDeleteGuideline && (
-                          <button
-                            onClick={(e) => handleDelete(gl, e)}
-                            disabled={deletingId === gl.id}
-                            title="Delete guideline and all its rules"
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
-                          >
-                            {deletingId === gl.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-3.5 h-3.5" />
-                            )}
-                          </button>
+                          <Chip onClick={(e) => handleDelete(gl, e)} color="danger" icon={
+                            deletingId === gl.id
+                              ? <Loader2 style={{ width: 11, height: 11 }} className="animate-spin" />
+                              : <Trash2 style={{ width: 11, height: 11 }} />
+                          } />
                         )}
                       </div>
                     </td>
@@ -298,127 +220,74 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
         )}
       </div>
 
-      {/* Upload Modal (FR-3.1, FR-3.2) */}
+      {/* ── Upload modal ──────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal header */}
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.55)', padding: 24 }}>
+          <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 className="text-sm font-semibold text-slate-900">Upload Guideline Document</h3>
-                <p className="text-xs text-slate-500">PDF upload or raw text paste for LLM extraction (FR-3.1)</p>
+                <div className="kicker-accent" style={{ marginBottom: 4 }}>Ingestion — FR-3.1</div>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Upload Guideline</h3>
               </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
             </div>
 
-            {/* Modal body */}
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  Guideline File (PDF, TXT, MD ≤10MB)
-                </label>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".pdf,.txt,.md"
-                  className="hidden"
-                />
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-4 text-center cursor-pointer transition-colors bg-slate-50/50 hover:bg-blue-50/20"
-                >
-                  <FileUp className="w-6 h-6 text-slate-400 mx-auto mb-1.5" />
-                  <span className="text-xs font-medium text-slate-700 block">
-                    Click to browse or drop file here
-                  </span>
-                  <span className="text-[11px] text-slate-400">
-                    Supports Apex Audio brand policy PDFs and plaintext guidelines
-                  </span>
-                </div>
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* File drop */}
+              <input type="file" ref={fileInputRef} onChange={handleFile} accept=".pdf,.txt,.md" style={{ display: 'none' }} />
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{ border: '1px dashed var(--rule)', padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: 'var(--paper)' }}
+              >
+                <FileUp style={{ width: 22, height: 22, color: 'var(--ink-faint)', margin: '0 auto 10px' }} />
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink-mid)', marginBottom: 4 }}>Click to browse or drop file</div>
+                <div className="kicker" style={{ textAlign: 'center', color: 'var(--ink-faint)' }}>PDF · TXT · MD — max 10 MB</div>
               </div>
 
+              {/* Filename */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-slate-700">Filename</label>
-                  <button
-                    type="button"
-                    onClick={handleLoadSample}
-                    className="text-[11px] text-blue-600 hover:underline flex items-center gap-1 font-medium"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Load Sample Brand Guideline
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+                  <label className="kicker">Filename</label>
+                  <button onClick={() => { setFilename('Apex_Brand_Guidelines_v2.4.pdf'); setRawText(RAW_GUIDELINE_SAMPLE); }} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                    Load Sample ↓
                   </button>
                 </div>
-                <input
-                  type="text"
-                  value={filename}
-                  onChange={(e) => setFilename(e.target.value)}
-                  placeholder="e.g. Apex_Brand_Guidelines_v2.4.pdf"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input type="text" value={filename} onChange={e => setFilename(e.target.value)} placeholder="e.g. Brand_Guidelines_v2.pdf" style={iStyle()} />
               </div>
 
+              {/* Content */}
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
-                  Guideline Content / Extracted Raw Text
-                </label>
-                <textarea
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  placeholder="Paste brand guideline content here..."
-                  rows={8}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-[11px] leading-relaxed"
-                />
-                <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                  <span>Strict JSON rule extraction will extract category, severity, and citations.</span>
-                  <span>{rawText.length} characters</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
+                  <label className="kicker">Guideline Content</label>
+                  <span className="kicker">{rawText.length.toLocaleString()} chars</span>
                 </div>
+                <textarea value={rawText} onChange={e => setRawText(e.target.value)} placeholder="Paste brand guideline content here…" rows={8} style={{ ...iStyle(), resize: 'vertical', fontFamily: 'var(--font-mono)', fontSize: 11, lineHeight: 1.6 }} />
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={!filename.trim() || !rawText.trim()}
-                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors shadow-sm"
-              >
-                Save Guideline &amp; Prepare Rules
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--rule)', display: 'flex', justifyContent: 'flex-end', gap: 10, background: 'var(--paper)' }}>
+              <button onClick={() => setShowModal(false)} style={ghostBtn()}>Cancel</button>
+              <button onClick={handleSubmit} disabled={!filename.trim() || !rawText.trim()} style={solidBtn(!filename.trim() || !rawText.trim())}>
+                Save &amp; Prepare Rules
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Guideline Detail & Version Review Modal */}
+      {/* ── Detail modal ──────────────────────── */}
       {selectedGuideline && (
         <GuidelineDetailModal
           guideline={selectedGuideline}
           rules={rules}
-          isOpen={Boolean(selectedGuideline)}
-          onClose={() => setSelectedGuideline(null)}
-          onConfirmGuideline={(id) => {
-            onConfirmGuideline(id);
-            setSelectedGuideline(null);
-          }}
+          isOpen
+          onClose={() => setSelected(null)}
+          onConfirmGuideline={(id) => { onConfirmGuideline(id); setSelected(null); }}
           onSelectVersion={async (glId, ver) => {
             if (onSelectVersion) {
               await onSelectVersion(glId, ver);
-              const updatedGl = guidelines.find((g) => g.id === glId);
-              if (updatedGl) {
-                setSelectedGuideline({ ...updatedGl, selected_version: ver });
-              }
+              const updated = guidelines.find(g => g.id === glId);
+              if (updated) setSelected({ ...updated, selected_version: ver });
             }
           }}
         />
@@ -426,5 +295,35 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
     </div>
   );
 };
+
+/* ── Action chip ───────────────────────────────────────────────── */
+const CHIP_COLORS = {
+  default: { bg: 'var(--paper-mid)', color: 'var(--ink-mid)', border: 'var(--rule)' },
+  info:    { bg: '#eff6ff',         color: '#1e40af',        border: '#bfdbfe' },
+  success: { bg: '#f0fdf4',         color: '#15803d',        border: '#86efac' },
+  danger:  { bg: '#fef2f2',         color: '#b91c1c',        border: '#fca5a5' },
+};
+
+function Chip({ children, icon, onClick, color = 'default' }: { children?: React.ReactNode; icon?: React.ReactNode; onClick?: (e: React.MouseEvent) => void; color?: keyof typeof CHIP_COLORS }) {
+  const c = CHIP_COLORS[color];
+  return (
+    <button
+      onClick={onClick}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', background: c.bg, color: c.color, border: `1px solid ${c.border}`, whiteSpace: 'nowrap' }}
+    >
+      {icon}{children}
+    </button>
+  );
+}
+
+function iStyle(): React.CSSProperties {
+  return { width: '100%', padding: '9px 12px', fontSize: 13, border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)', outline: 'none', fontFamily: 'var(--font-sans)' };
+}
+function ghostBtn(): React.CSSProperties {
+  return { padding: '9px 20px', fontSize: 13, fontWeight: 500, cursor: 'pointer', background: 'transparent', color: 'var(--ink-mid)', border: '1px solid var(--rule)' };
+}
+function solidBtn(disabled: boolean): React.CSSProperties {
+  return { padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', opacity: disabled ? 0.4 : 1 };
+}
 
 export default GuidelinesPage;

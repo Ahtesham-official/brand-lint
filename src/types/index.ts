@@ -10,6 +10,11 @@ export interface User {
   title?: string;
 }
 
+export interface BrandPaletteItem {
+  hex: string;
+  name?: string;
+}
+
 export interface BrandPalette {
   primary: string;       // e.g. '#1E3A8A'
   primary_name?: string;
@@ -19,6 +24,7 @@ export interface BrandPalette {
   accent_name?: string;
   neutral_dark: string;  // e.g. '#111827'
   neutral_light: string; // e.g. '#F9FAFB'
+  additional_approved?: BrandPaletteItem[]; // additional custom approved colors
   forbidden_colors: string[]; // e.g. ['#EC4899', '#EF4444', '#F43F5E']
   wcag_min_contrast: number; // default 4.5
 }

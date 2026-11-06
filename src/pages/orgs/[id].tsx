@@ -17,15 +17,16 @@ import {
   KeyRound,
   ShieldAlert,
   AlertTriangle,
+  X,
 } from 'lucide-react';
 import { OrgLayout } from '@/components/layout/OrgLayout';
 import { Organization, OrganizationMember, OrgRole, OrganizationInvite } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
 
-const ROLE_BADGE: Record<OrgRole, string> = {
-  admin: 'bg-blue-100 text-blue-700 border-blue-200',
-  creator: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  reviewer: 'bg-amber-100 text-amber-700 border-amber-200',
+const ROLE_STYLES: Record<OrgRole, { bg: string; text: string; border: string }> = {
+  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
 
 export default function OrgDetailPage() {
@@ -49,62 +50,48 @@ export default function OrgDetailPage() {
   const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Delete Organisation State (Admin Only)
+  // Delete State (Admin Only)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [confirmNameInput, setConfirmNameInput] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Active user retrieval
-  useEffect(() => {
+  // Fetch Organisation Data
+  const fetchOrgDetails = useCallback(async () => {
+    if (!orgId) return;
+    setLoading(true);
+    setError(null);
+
+    let activeUser = SEEDED_USERS[0].id;
     try {
       const stored = localStorage.getItem('brandlint_current_user');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed?.id) setCurrentUserId(parsed.id);
+        if (parsed?.id) activeUser = parsed.id;
       }
     } catch {}
-  }, []);
-
-  const loadData = useCallback(async () => {
-    if (!orgId) return;
-
-    setLoading(true);
-    setError(null);
+    setCurrentUserId(activeUser);
 
     try {
-      // 1. Fetch organization details
-      const orgRes = await fetch(`/api/orgs/${orgId}?userId=${encodeURIComponent(currentUserId)}`, {
-        headers: { 'x-user-id': currentUserId },
+      const res = await fetch(`/api/orgs/${orgId}?userId=${encodeURIComponent(activeUser)}`, {
+        headers: { 'x-user-id': activeUser },
       });
-      const orgData = await orgRes.json();
-      if (!orgRes.ok) {
-        throw new Error(orgData.error || 'Failed to load organisation');
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to load organisation details');
 
-      setOrg(orgData.organization);
-      setUserRole(orgData.organization.user_role || null);
-
-      // 2. Fetch members
-      const memRes = await fetch(`/api/orgs/${orgId}/members?userId=${encodeURIComponent(currentUserId)}`, {
-        headers: { 'x-user-id': currentUserId },
-      });
-      const memData = await memRes.json();
-      if (memRes.ok) {
-        setMembers(memData.members || []);
-      }
+      setOrg(data.organization);
+      setMembers(data.members || []);
+      setUserRole(data.userRole || null);
     } catch (err: any) {
-      setError(err.message || 'Error loading organisation.');
+      setError(err.message || 'Error fetching organisation details.');
     } finally {
       setLoading(false);
     }
-  }, [orgId, currentUserId]);
+  }, [orgId]);
 
   useEffect(() => {
-    if (router.isReady && orgId) {
-      loadData();
-    }
-  }, [router.isReady, orgId, loadData]);
+    fetchOrgDetails();
+  }, [fetchOrgDetails]);
 
   // Handle Role Change (Admin only)
   const handleRoleChange = async (targetUserId: string, newRole: OrgRole) => {
@@ -131,7 +118,6 @@ export default function OrgDetailPage() {
         prev.map((m) => (m.user_id === targetUserId ? { ...m, role: newRole } : m))
       );
 
-      // If user modified their own role, update state
       if (targetUserId === currentUserId) {
         setUserRole(newRole);
       }
@@ -169,12 +155,13 @@ export default function OrgDetailPage() {
     }
   };
 
-  // Handle Invite Generation (Admin only)
+  // Handle Generate Invite (Admin only)
   const handleGenerateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setGeneratingInvite(true);
     setError(null);
-    setCopied(false);
+    setSuccessMsg(null);
+    setGeneratedInviteUrl(null);
 
     try {
       const res = await fetch(`/api/orgs/${orgId}/invites`, {
@@ -193,13 +180,14 @@ export default function OrgDetailPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate invitation');
+        throw new Error(data.error || 'Failed to create invite link');
       }
 
-      setGeneratedInviteUrl(data.joinUrl);
-      setSuccessMsg('Invite link generated!');
+      const fullUrl = `${window.location.origin}/orgs/join?token=${data.invite.token}`;
+      setGeneratedInviteUrl(fullUrl);
+      setSuccessMsg('Invite link generated successfully.');
     } catch (err: any) {
-      setError(err.message || 'Failed to generate invitation.');
+      setError(err.message || 'Error creating invite.');
     } finally {
       setGeneratingInvite(false);
     }
@@ -241,12 +229,10 @@ export default function OrgDetailPage() {
         throw new Error(data.error || 'Failed to delete organisation.');
       }
 
-      // Clear any active workspace session in local storage
       try {
         localStorage.removeItem('brandlint_active_org_id');
       } catch {}
 
-      // Redirect Admin to the main BrandLint landing page
       router.push('/');
     } catch (err: any) {
       setDeleteError(err.message || 'Error deleting organisation.');
@@ -259,15 +245,33 @@ export default function OrgDetailPage() {
   return (
     <OrgLayout
       title={org?.name || 'Organisation'}
-      subtitle={org?.description || 'Multi-tenant brand workspace.'}
+      subtitle={org?.description || 'Multi-tenant brand workspace governance.'}
       breadcrumbs={[{ label: org?.name || 'Details' }]}
       actions={
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {userRole && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs shadow-xs">
-              <span className="text-slate-400 font-medium">Your Role:</span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 14px',
+              background: 'var(--white)',
+              border: '1px solid var(--rule)',
+              fontSize: 12,
+            }}>
+              <span style={{ color: 'var(--ink-faint)', fontWeight: 600 }}>Your Role:</span>
               <span
-                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${ROLE_BADGE[userRole]}`}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  padding: '2px 8px',
+                  background: ROLE_STYLES[userRole]?.bg || '#fef3c7',
+                  color: ROLE_STYLES[userRole]?.text || '#92400e',
+                  border: `1px solid ${ROLE_STYLES[userRole]?.border || '#fcd34d'}`,
+                }}
               >
                 {userRole}
               </span>
@@ -278,36 +282,78 @@ export default function OrgDetailPage() {
     >
       {/* Messages */}
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div style={{
+          marginBottom: 20,
+          padding: '14px 18px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          color: '#991b1b',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <AlertCircle style={{ width: 16, height: 16, flexShrink: 0 }} />
           <span>{error}</span>
         </div>
       )}
       {successMsg && (
-        <div className="mb-6 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
+        <div style={{
+          marginBottom: 20,
+          padding: '14px 18px',
+          background: '#f0fdf4',
+          border: '1px solid #bbf7d0',
+          color: '#166534',
+          fontSize: 13,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}>
+          <CheckCircle2 style={{ width: 16, height: 16, flexShrink: 0 }} />
           <span>{successMsg}</span>
         </div>
       )}
 
       {loading ? (
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-500 font-medium">Loading organisation details...</p>
+        <div style={{
+          padding: 48,
+          textAlign: 'center',
+          background: 'var(--white)',
+          border: '1px solid var(--rule)',
+          boxShadow: '3px 3px 0px var(--btn-shadow)',
+        }}>
+          <Loader2 style={{ width: 28, height: 28, color: 'var(--accent)', margin: '0 auto 12px' }} className="animate-spin" />
+          <p style={{ fontSize: 13, color: 'var(--ink-mid)', fontWeight: 600 }}>Loading organisation details...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Members Column (2/3 width on desktop) */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Users className="w-4 h-4" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, alignItems: 'start' }}>
+          {/* Members Column */}
+          <div style={{ gridColumn: 'span 2 / span 2', display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{
+              background: 'var(--white)',
+              border: '1px solid var(--rule)',
+              padding: '24px 28px',
+              boxShadow: '3px 3px 0px var(--btn-shadow)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, marginBottom: 16, borderBottom: '1px solid var(--rule)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    background: 'var(--accent-bg)',
+                    color: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid var(--rule)',
+                  }}>
+                    <Users style={{ width: 16, height: 16 }} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-slate-900">Members & Roles</h2>
-                    <p className="text-xs text-slate-500">
+                    <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                      Members & Roles
+                    </h2>
+                    <p style={{ fontSize: 12, color: 'var(--ink-mid)', margin: '2px 0 0' }}>
                       {members.length} {members.length === 1 ? 'member' : 'members'} in this organisation
                     </p>
                   </div>
@@ -315,46 +361,86 @@ export default function OrgDetailPage() {
               </div>
 
               {/* Members List */}
-              <div className="divide-y divide-slate-100">
-                {members.map((member) => {
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {members.map((member, idx) => {
                   const isCurrent = member.user_id === currentUserId;
+                  const roleStyle = ROLE_STYLES[member.role] || ROLE_STYLES.creator;
+
                   return (
                     <div
                       key={member.id}
-                      className="py-3.5 flex items-center justify-between gap-4 first:pt-1 last:pb-1"
+                      style={{
+                        padding: '14px 0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 16,
+                        borderBottom: idx === members.length - 1 ? 'none' : '1px solid var(--rule)',
+                      }}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-xs text-slate-700 shrink-0">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                        <div style={{
+                          width: 34,
+                          height: 34,
+                          background: 'var(--paper-mid)',
+                          border: '1px solid var(--rule)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          fontFamily: 'var(--font-serif)',
+                          color: 'var(--ink)',
+                          flexShrink: 0,
+                        }}>
                           {member.user_name ? member.user_name.charAt(0).toUpperCase() : 'U'}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-900 truncate">
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {member.user_name || member.user_id}
                             </span>
                             {isCurrent && (
-                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
+                              <span style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: 9,
+                                background: 'var(--paper-dark)',
+                                color: 'var(--ink-mid)',
+                                padding: '1px 6px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.06em',
+                              }}>
                                 You
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400 block truncate">
+                          <span style={{ fontSize: 12, color: 'var(--ink-faint)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }}>
                             {member.user_email || `Joined ${new Date(member.joined_at).toLocaleDateString()}`}
                           </span>
                         </div>
                       </div>
 
                       {/* Role selection & admin actions */}
-                      <div className="flex items-center gap-2.5 shrink-0">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                         {isAdmin ? (
                           <select
                             value={member.role}
                             onChange={(e) =>
                               handleRoleChange(member.user_id, e.target.value as OrgRole)
                             }
-                            className={`text-xs font-semibold rounded-lg px-2.5 py-1 border transition-colors cursor-pointer ${
-                              ROLE_BADGE[member.role]
-                            }`}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              padding: '4px 8px',
+                              background: roleStyle.bg,
+                              color: roleStyle.text,
+                              border: `1px solid ${roleStyle.border}`,
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.06em',
+                              outline: 'none',
+                            }}
                           >
                             <option value="admin">Admin</option>
                             <option value="creator">Creator</option>
@@ -362,22 +448,34 @@ export default function OrgDetailPage() {
                           </select>
                         ) : (
                           <span
-                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                              ROLE_BADGE[member.role]
-                            }`}
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.08em',
+                              padding: '2px 8px',
+                              background: roleStyle.bg,
+                              color: roleStyle.text,
+                              border: `1px solid ${roleStyle.border}`,
+                            }}
                           >
                             {member.role}
                           </span>
                         )}
 
-                        {/* Remove Member button (Admin only, cannot remove if only admin) */}
                         {isAdmin && (
                           <button
                             onClick={() => handleRemoveMember(member.user_id, member.user_name)}
                             title="Remove member"
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="btn-plain"
+                            style={{
+                              padding: 6,
+                              color: 'var(--ink-faint)',
+                              cursor: 'pointer',
+                            }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 style={{ width: 14, height: 14 }} />
                           </button>
                         )}
                       </div>
@@ -388,39 +486,71 @@ export default function OrgDetailPage() {
             </div>
 
             {/* Quick Context Card */}
-            <div className="p-4 rounded-xl bg-slate-100/70 border border-slate-200/80 text-xs text-slate-600 space-y-1">
-              <span className="font-semibold text-slate-800">Fixed Role Permissions:</span>
-              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-500 pt-1">
-                <li><strong className="text-slate-700">Admin:</strong> Manage organisation, create invites, change roles, remove members.</li>
-                <li><strong className="text-slate-700">Creator:</strong> Submit content for checking, view own submissions.</li>
-                <li><strong className="text-slate-700">Reviewer:</strong> View submissions in the organisation, approve or reject them.</li>
+            <div style={{
+              padding: '16px 20px',
+              background: 'var(--paper-mid)',
+              border: '1px solid var(--rule)',
+              fontSize: 12,
+              color: 'var(--ink-mid)',
+              lineHeight: 1.6,
+            }}>
+              <span style={{ fontWeight: 700, color: 'var(--ink)' }}>Fixed Role Permissions:</span>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 16 }}>
+                <li><strong style={{ color: 'var(--ink)' }}>Admin:</strong> Manage organisation, create invites, change roles, remove members.</li>
+                <li><strong style={{ color: 'var(--ink)' }}>Creator:</strong> Submit content for checking, view own submissions.</li>
+                <li><strong style={{ color: 'var(--ink)' }}>Reviewer:</strong> View submissions in the organisation, approve or reject them.</li>
               </ul>
             </div>
           </div>
 
           {/* Right Column: Invite Generator (Admin only) or Informational Card */}
-          <div className="space-y-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {isAdmin ? (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <UserPlus className="w-4 h-4" />
+              <div style={{
+                background: 'var(--white)',
+                border: '1px solid var(--rule)',
+                padding: '24px 24px',
+                boxShadow: '3px 3px 0px var(--btn-shadow)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 16, marginBottom: 18, borderBottom: '1px solid var(--rule)' }}>
+                  <div style={{
+                    width: 34,
+                    height: 34,
+                    background: 'var(--accent-bg)',
+                    color: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid var(--rule)',
+                  }}>
+                    <UserPlus style={{ width: 16, height: 16 }} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Invite Members</h3>
-                    <p className="text-[11px] text-slate-400">Generate a reusable join link</p>
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                      Invite Members
+                    </h3>
+                    <p style={{ fontSize: 11, color: 'var(--ink-faint)', margin: '2px 0 0' }}>Generate a reusable join link</p>
                   </div>
                 </div>
 
-                <form onSubmit={handleGenerateInvite} className="space-y-4">
+                <form onSubmit={handleGenerateInvite} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="kicker" style={{ marginBottom: 6 }}>
                       Assigned Role
                     </label>
                     <select
                       value={inviteRole}
                       onChange={(e) => setInviteRole(e.target.value as OrgRole)}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: '1px solid var(--rule-dark)',
+                        background: 'var(--paper)',
+                        color: 'var(--ink)',
+                        outline: 'none',
+                      }}
                     >
                       <option value="creator">Creator (Submit & check content)</option>
                       <option value="reviewer">Reviewer (Audit & approve submissions)</option>
@@ -428,15 +558,23 @@ export default function OrgDetailPage() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="kicker" style={{ marginBottom: 6 }}>
                         Expires In
                       </label>
                       <select
                         value={expiresInHours}
                         onChange={(e) => setExpiresInHours(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          fontSize: 12,
+                          border: '1px solid var(--rule-dark)',
+                          background: 'var(--paper)',
+                          color: 'var(--ink)',
+                          outline: 'none',
+                        }}
                       >
                         <option value={24}>24 hours</option>
                         <option value={48}>48 hours</option>
@@ -446,15 +584,23 @@ export default function OrgDetailPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      <label className="kicker" style={{ marginBottom: 6 }}>
                         Max Uses
                       </label>
                       <select
                         value={maxUses}
                         onChange={(e) => setMaxUses(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          fontSize: 12,
+                          border: '1px solid var(--rule-dark)',
+                          background: 'var(--paper)',
+                          color: 'var(--ink)',
+                          outline: 'none',
+                        }}
                       >
-                        <option value={1}>1 use (Single)</option>
+                        <option value={1}>1 use</option>
                         <option value={5}>5 uses</option>
                         <option value={20}>20 uses</option>
                         <option value={100}>100 uses</option>
@@ -465,53 +611,95 @@ export default function OrgDetailPage() {
                   <button
                     type="submit"
                     disabled={generatingInvite}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors shadow-sm"
+                    className="btn-primary"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      padding: '10px 16px',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: generatingInvite ? 'not-allowed' : 'pointer',
+                      marginTop: 4,
+                      boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                    }}
                   >
-                    {generatingInvite && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {generatingInvite && <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />}
                     <span>Generate Invite Link</span>
                   </button>
                 </form>
 
                 {/* Generated Link Display */}
                 {generatedInviteUrl && (
-                  <div className="mt-5 pt-4 border-t border-slate-100">
-                    <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
+                    <label className="kicker" style={{ marginBottom: 6 }}>
                       Copyable Join Link:
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <input
                         type="text"
                         readOnly
                         value={generatedInviteUrl}
-                        className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-700 select-all font-mono"
+                        style={{
+                          flex: 1,
+                          padding: '8px 10px',
+                          fontSize: 11,
+                          border: '1px solid var(--rule-dark)',
+                          background: 'var(--paper-mid)',
+                          color: 'var(--ink)',
+                          fontFamily: 'var(--font-mono)',
+                          outline: 'none',
+                        }}
                       />
                       <button
                         onClick={copyToClipboard}
-                        className={`p-2 rounded-xl border transition-colors shrink-0 ${
-                          copied
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
+                        style={{
+                          padding: '8px 12px',
+                          background: copied ? '#dcfce7' : 'var(--white)',
+                          color: copied ? '#166534' : 'var(--ink)',
+                          border: '1px solid var(--rule-dark)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
                         title="Copy to clipboard"
                       >
-                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        {copied ? <Check style={{ width: 14, height: 14 }} /> : <Copy style={{ width: 14, height: 14 }} />}
                       </button>
                     </div>
                     {copied && (
-                      <p className="text-[11px] text-emerald-600 font-medium mt-1.5 flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Copied link to clipboard!
+                      <p style={{ fontSize: 11, color: '#166534', fontWeight: 600, marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Check style={{ width: 12, height: 12 }} /> Copied link to clipboard!
                       </p>
                     )}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-sm text-center">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                  <ShieldAlert className="w-5 h-5" />
+              <div style={{
+                background: 'var(--white)',
+                border: '1px solid var(--rule)',
+                padding: '28px 24px',
+                textAlign: 'center',
+                boxShadow: '3px 3px 0px var(--btn-shadow)',
+              }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  background: 'var(--paper-mid)',
+                  color: 'var(--ink-faint)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 12px',
+                }}>
+                  <ShieldAlert style={{ width: 20, height: 20 }} />
                 </div>
-                <h3 className="text-xs font-bold text-slate-800">Admin-Only Controls</h3>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>
+                  Admin-Only Controls
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--ink-mid)', margin: 0, lineHeight: 1.5 }}>
                   Only administrators can create invitation links or change member roles for this organisation.
                 </p>
               </div>
@@ -520,30 +708,50 @@ export default function OrgDetailPage() {
 
           {/* Danger Zone: Delete Organisation (Admin Only) */}
           {isAdmin && (
-            <div className="lg:col-span-3 mt-6 pt-6 border-t border-slate-200">
-              <div className="bg-red-50/50 border border-red-200/80 rounded-2xl p-6 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 text-red-700">
-                      <AlertTriangle className="w-4 h-4" />
-                      <h3 className="text-sm font-bold">Danger Zone</h3>
-                    </div>
-                    <p className="text-xs text-red-600/90 mt-1 max-w-xl leading-relaxed">
-                      Permanently delete this organisation and all associated guidelines, rules, fact vaults, invites, and member records. This action cannot be undone.
-                    </p>
+            <div style={{ gridColumn: '1 / -1', marginTop: 12, paddingTop: 20, borderTop: '1px solid var(--rule)' }}>
+              <div style={{
+                background: '#fff1f2',
+                border: '1px solid #fecdd3',
+                padding: '20px 24px',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 16,
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9f1239' }}>
+                    <AlertTriangle style={{ width: 16, height: 16 }} />
+                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 800, margin: 0 }}>Danger Zone</h3>
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowDeleteModal(true);
-                      setConfirmNameInput('');
-                      setDeleteError(null);
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white transition-colors shadow-sm shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Organisation</span>
-                  </button>
+                  <p style={{ fontSize: 12, color: '#be123c', margin: '4px 0 0', maxWidth: 600, lineHeight: 1.5 }}>
+                    Permanently delete this organisation and all associated guidelines, rules, fact vaults, invites, and member records. This action cannot be undone.
+                  </p>
                 </div>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(true);
+                    setConfirmNameInput('');
+                    setDeleteError(null);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '9px 18px',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    background: '#e11d48',
+                    color: '#ffffff',
+                    border: '1px solid #9f1239',
+                    cursor: 'pointer',
+                    boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                  }}
+                >
+                  <Trash2 style={{ width: 14, height: 14 }} />
+                  <span>Delete Organisation</span>
+                </button>
               </div>
             </div>
           )}
@@ -552,43 +760,84 @@ export default function OrgDetailPage() {
 
       {/* Delete Confirmation Modal (Admin Only) */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-red-200">
-            <div className="flex items-center gap-3 text-red-600 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(28, 25, 23, 0.5)',
+          backdropFilter: 'blur(3px)',
+          padding: 16,
+        }}>
+          <div style={{
+            background: 'var(--white)',
+            maxWidth: 480,
+            width: '100%',
+            padding: 28,
+            border: '1px solid #fecdd3',
+            boxShadow: '6px 6px 0px var(--btn-shadow)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#be123c', marginBottom: 16 }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                background: '#ffe4e6',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <AlertTriangle style={{ width: 20, height: 20, color: '#e11d48' }} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">Delete Organisation</h3>
-                <p className="text-xs text-red-600 font-semibold">This action is permanent and irreversible.</p>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                  Delete Organisation
+                </h3>
+                <p style={{ fontSize: 12, color: '#be123c', fontWeight: 600, margin: '2px 0 0' }}>This action is permanent and irreversible.</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed mb-4">
-              Deleting <strong className="text-slate-900 font-semibold">{org?.name}</strong> will permanently remove all associated guidelines, rulebooks, fact vaults, invitation links, and membership records.
+            <p style={{ fontSize: 13, color: 'var(--ink-mid)', lineHeight: 1.6, marginBottom: 16 }}>
+              Deleting <strong style={{ color: 'var(--ink)' }}>{org?.name}</strong> will permanently remove all associated guidelines, rulebooks, fact vaults, invitation links, and membership records.
             </p>
 
             {deleteError && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+              <div style={{
+                marginBottom: 16,
+                padding: '10px 14px',
+                background: '#fff1f2',
+                border: '1px solid #fecdd3',
+                color: '#be123c',
+                fontSize: 12,
+              }}>
                 {deleteError}
               </div>
             )}
 
-            <div className="space-y-2 mb-6">
-              <label className="block text-xs text-slate-700">
-                To confirm, please type <span className="font-mono font-bold text-slate-900 select-all bg-slate-100 px-1.5 py-0.5 rounded">{org?.name}</span> below:
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: 12, color: 'var(--ink)', display: 'block', marginBottom: 6 }}>
+                To confirm, please type <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, background: 'var(--paper-mid)', padding: '2px 6px' }}>{org?.name}</span> below:
               </label>
               <input
                 type="text"
                 placeholder="Type exact organisation name to confirm"
                 value={confirmNameInput}
                 onChange={(e) => setConfirmNameInput(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  fontSize: 13,
+                  border: '1px solid var(--rule-dark)',
+                  background: 'var(--paper)',
+                  color: 'var(--ink)',
+                  outline: 'none',
+                }}
                 autoFocus
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -597,7 +846,14 @@ export default function OrgDetailPage() {
                   setDeleteError(null);
                 }}
                 disabled={deleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                className="btn-plain"
+                style={{
+                  padding: '8px 16px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--ink-mid)',
+                  cursor: 'pointer',
+                }}
               >
                 Cancel
               </button>
@@ -605,9 +861,22 @@ export default function OrgDetailPage() {
                 type="button"
                 onClick={handleDeleteOrg}
                 disabled={confirmNameInput.trim() !== org?.name || deleting}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors shadow-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '9px 18px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  background: '#e11d48',
+                  color: '#ffffff',
+                  border: '1px solid #9f1239',
+                  cursor: confirmNameInput.trim() !== org?.name || deleting ? 'not-allowed' : 'pointer',
+                  opacity: confirmNameInput.trim() !== org?.name || deleting ? 0.4 : 1,
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                }}
               >
-                {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {deleting && <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />}
                 <span>Delete Organisation</span>
               </button>
             </div>
@@ -617,4 +886,3 @@ export default function OrgDetailPage() {
     </OrgLayout>
   );
 }
-

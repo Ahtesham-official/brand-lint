@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import {
-  FileText,
-  Image as ImageIcon,
   ChevronDown,
   ChevronUp,
   Sparkles,
   Send,
   Loader2,
   ScanText,
-  Upload,
 } from 'lucide-react';
 import type { Brand, Submission } from '@/types';
 import { DEMO_SUBMISSION_INITIAL } from '@/data/seedData';
@@ -26,7 +23,7 @@ interface SubmitPageProps {
 
 const PRESET_POSTERS = [
   {
-    name: 'Diwali Festive Wireless Earbuds Poster',
+    name: 'Festive Wireless Earbuds Campaign',
     url: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80',
     ocr: "INDIA'S #1 SOUND\nNOW WITH 24-MONTH WARRANTY\nUNBEATABLE BASS",
   },
@@ -88,162 +85,169 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
   const isValid = title.trim().length > 0 && caption.trim().length > 0;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ maxWidth: 780, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+      {/* ── Page Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
         <div>
-          <h1 className="text-base font-bold text-slate-900">New Content Brand Check</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Submit social caption and poster graphic for OCR text extraction and multi-rule brand governance (PRD FR-6.1 - FR-8.10).
+          <div className="kicker-accent" style={{ marginBottom: 8 }}>Creator Workspace</div>
+          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
+            New Content Check
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
+            Submit social caption and poster graphic for multi-rule compliance review.
           </p>
         </div>
         <button
           type="button"
           onClick={handleLoadDemo}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors shadow-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'var(--white)', color: 'var(--accent)', border: '1px solid var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
         >
-          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-          Load Demo Violation Copy (PRD §17.2)
+          <Sparkles style={{ width: 14, height: 14 }} /> Load Demo Violation
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      {/* ── Form Card ── */}
+      <form onSubmit={handleSubmit} style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '32px', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Title */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Campaign or Post Title
-          </label>
+          <label className="kicker" style={{ marginBottom: 8 }}>Campaign / Post Title *</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Diwali Festive Launch Campaign — Wireless Earbuds Promo"
-            className="w-full px-3.5 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+            autoFocus
+            style={iStyle()}
           />
         </div>
 
         {/* Caption */}
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-semibold text-slate-700">
-              Social Media Caption &amp; Copy Text (PRD FR-6.1)
-            </label>
-            <span className="text-[11px] text-slate-400">
-              {caption.length}/{maxCaption} chars
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <label className="kicker">Marketing Caption *</label>
+            <span className="kicker" style={{ color: caption.length > maxCaption ? '#b91c1c' : 'var(--ink-faint)' }}>
+              {caption.length} / {maxCaption}
             </span>
           </div>
           <textarea
             value={caption}
-            onChange={(e) => setCaption(e.target.value.slice(0, maxCaption))}
-            placeholder="Paste caption copy, promotional claims, hashtag text, and disclaimers..."
-            rows={5}
-            className="w-full px-3.5 py-2.5 text-xs border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed font-sans"
+            onChange={(e) => setCaption(e.target.value)}
+            placeholder="Write or paste your social media caption copy here..."
+            rows={6}
             required
+            style={{ ...iStyle(), resize: 'vertical', lineHeight: 1.6 }}
           />
         </div>
 
-        {/* Poster Image URL & Gallery */}
+        {/* Poster selection */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Poster / Campaign Graphic Image URL (PRD FR-6.1)
-          </label>
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <div className="relative">
-                <ImageIcon className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            {imageUrl && (
-              <div className="w-14 h-14 rounded-lg border border-slate-200 overflow-hidden flex-shrink-0 bg-slate-100">
-                <img
-                  src={imageUrl}
-                  alt="Poster preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
+          <label className="kicker" style={{ marginBottom: 8 }}>Poster Artwork Image</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+            {PRESET_POSTERS.map((preset) => {
+              const isSelected = imageUrl === preset.url;
+              return (
+                <div
+                  key={preset.name}
+                  onClick={() => handleSelectPosterPreset(preset)}
+                  style={{
+                    padding: '12px 14px',
+                    background: isSelected ? 'var(--paper)' : 'var(--white)',
+                    border: `1px solid ${isSelected ? 'var(--ink)' : 'var(--rule)'}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
                   }}
-                />
-              </div>
-            )}
+                >
+                  <img src={preset.url} alt="" style={{ width: 48, height: 48, objectFit: 'cover', border: '1px solid var(--rule)' }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {preset.name}
+                    </div>
+                    <div className="kicker" style={{ marginTop: 2 }}>Sample Artwork</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Quick preset selector */}
-          <div className="mt-2.5 flex items-center gap-2">
-            <span className="text-[11px] text-slate-400">Or pick preset poster:</span>
-            {PRESET_POSTERS.map((p, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSelectPosterPreset(p)}
-                className="text-[11px] text-blue-600 hover:underline bg-slate-50 px-2 py-0.5 rounded border border-slate-200 font-medium"
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+          <input
+            type="url"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+            placeholder="Or paste external image URL (https://...)"
+            style={{ ...iStyle(), fontFamily: 'var(--font-mono)', fontSize: 11 }}
+          />
         </div>
 
-        {/* OCR Section (PRD FR-7.1, FR-7.2) */}
-        <div className="border-t border-slate-100 pt-4">
+        {/* OCR text drawer toggle */}
+        <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 16 }}>
           <button
             type="button"
             onClick={() => setShowOcr(!showOcr)}
-            className="flex items-center justify-between w-full text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--ink-mid)', fontSize: 13 }}
           >
-            <span className="flex items-center gap-1.5">
-              <ScanText className="w-3.5 h-3.5 text-blue-600" />
-              OCR Text Provenance Layer (PRD FR-7.1 - FR-7.3)
-            </span>
-            {showOcr ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <ScanText style={{ width: 14, height: 14, color: 'var(--accent)' }} />
+            <span style={{ fontWeight: 600 }}>OCR Text Extracted From Poster Graphic</span>
+            {showOcr ? <ChevronUp style={{ width: 14, height: 14 }} /> : <ChevronDown style={{ width: 14, height: 14 }} />}
           </button>
 
           {showOcr && (
-            <div className="mt-3 space-y-2">
-              <p className="text-[11px] text-slate-500">
-                Text detected inside poster graphic typography via OCR. This text is combined with the caption to verify claims and superlatives across both visual and textual layers.
-              </p>
+            <div style={{ marginTop: 12 }}>
               <textarea
                 value={ocrText}
                 onChange={(e) => setOcrText(e.target.value)}
-                placeholder="OCR text extracted from graphic..."
+                placeholder="Simulated or extracted text from poster image..."
                 rows={3}
-                className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg resize-none font-mono text-[11px] bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ ...iStyle(), fontFamily: 'var(--font-mono)', fontSize: 11, resize: 'vertical' }}
               />
+              <span className="kicker" style={{ marginTop: 6 }}>
+                Simulates Google Cloud Vision OCR detection for graphic text governance.
+              </span>
             </div>
           )}
         </div>
 
-        {/* Submit CTA */}
-        <div className="pt-2">
+        {/* Submit action */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
           <button
             type="submit"
             disabled={!isValid || loading}
-            className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '13px 32px',
+              background: 'var(--btn-primary)',
+              color: 'var(--white)',
+              border: '1px solid var(--rule-dark)',
+              cursor: !isValid || loading ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              opacity: !isValid || loading ? 0.4 : 1,
+            }}
           >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Running Deterministic &amp; AI Check Engine (PRD FR-8)...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                <span>Run Brand Lint Engine &amp; Generate Cited Report</span>
-              </>
-            )}
+            {loading ? <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" /> : <Send style={{ width: 15, height: 15 }} />}
+            <span>{loading ? 'Analyzing Content...' : 'Run Brand Governance Check'}</span>
           </button>
         </div>
       </form>
     </div>
   );
 };
+
+function iStyle(): React.CSSProperties {
+  return {
+    width: '100%',
+    padding: '10px 14px',
+    fontSize: 13,
+    border: '1px solid var(--rule)',
+    background: 'var(--paper)',
+    color: 'var(--ink)',
+    outline: 'none',
+    fontFamily: 'var(--font-sans)',
+  };
+}
 
 export default SubmitPage;
