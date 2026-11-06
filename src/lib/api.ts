@@ -79,10 +79,20 @@ class ApiClient {
     });
   }
 
-  public async extractRules(guidelineId: string): Promise<{ success: boolean; rules: Rule[]; extractedCount: number }> {
-    return this.request<{ success: boolean; rules: Rule[]; extractedCount: number }>(
+  public async extractRules(guidelineId: string): Promise<{ success: boolean; rules: Rule[]; extractedCount: number; guideline: Guideline }> {
+    return this.request<{ success: boolean; rules: Rule[]; extractedCount: number; guideline: Guideline }>(
       `/api/guidelines/${guidelineId}/extract`,
       { method: 'POST' }
+    );
+  }
+
+  public async selectGuidelineVersion(guidelineId: string, version: 'original' | 'enhanced'): Promise<{ success: boolean; selected_version: string; guideline: Guideline; rules: Rule[] }> {
+    return this.request<{ success: boolean; selected_version: string; guideline: Guideline; rules: Rule[] }>(
+      `/api/guidelines/${guidelineId}/select-version`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ version }),
+      }
     );
   }
 
@@ -90,6 +100,25 @@ class ApiClient {
     return this.request<{ success: boolean; activeRulesCount: number; guideline: Guideline }>(
       `/api/guidelines/${guidelineId}/confirm`,
       { method: 'POST' }
+    );
+  }
+
+  public async deleteGuideline(guidelineId: string): Promise<{ success: boolean }> {
+    return this.request<{ success: boolean }>(`/api/guidelines/${guidelineId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  public async toggleGuideline(
+    guidelineId: string,
+    enabled: boolean
+  ): Promise<{ success: boolean; guideline: Guideline }> {
+    return this.request<{ success: boolean; guideline: Guideline }>(
+      `/api/guidelines/${guidelineId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ enabled }),
+      }
     );
   }
 

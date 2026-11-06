@@ -31,7 +31,16 @@ export interface Brand {
   palette: BrandPalette;
 }
 
-export type GuidelineStatus = 'pending' | 'extracted' | 'confirmed';
+export type GuidelineStatus = 'pending' | 'extracted' | 'confirmed' | 'disabled';
+
+export interface GuidelineAnalysis {
+  summary: string;
+  key_takeaways: string[];
+  tone_profile: string;
+  strictness_level: 'Permissive' | 'Balanced' | 'Strict' | 'Zero-Tolerance';
+  target_audience?: string;
+  recommended_actions: string[];
+}
 
 export interface Guideline {
   id: string;
@@ -40,9 +49,13 @@ export interface Guideline {
   file_url?: string;
   raw_text: string;
   status: GuidelineStatus;
+  enabled?: boolean;
   created_at: string;
   extracted_at?: string;
   rules_count?: number;
+  ai_analysis?: GuidelineAnalysis;
+  enhanced_version?: string;
+  selected_version?: 'original' | 'enhanced';
 }
 
 export type RuleCategory = 

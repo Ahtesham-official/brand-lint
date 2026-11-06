@@ -239,6 +239,24 @@ export default function Home() {
     }
   };
 
+  const handleDeleteGuideline = async (guidelineId: string) => {
+    try {
+      await api.deleteGuideline(guidelineId);
+      await refreshFromServer();
+    } catch (e) {
+      console.error('Failed to delete guideline:', e);
+    }
+  };
+
+  const handleToggleGuideline = async (guidelineId: string, enabled: boolean) => {
+    try {
+      await api.toggleGuideline(guidelineId, enabled);
+      await refreshFromServer();
+    } catch (e) {
+      console.error('Failed to toggle guideline:', e);
+    }
+  };
+
   const handleAddRule = async (ruleData: Omit<Rule, 'id'>) => {
     try {
       await api.addRule(ruleData);
@@ -429,6 +447,16 @@ export default function Home() {
             onAddGuideline={handleAddGuideline}
             onExtractRules={handleExtractRules}
             onConfirmGuideline={handleConfirmGuideline}
+            onSelectVersion={async (glId, ver) => {
+              try {
+                await api.selectGuidelineVersion(glId, ver);
+                await refreshFromServer();
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+            onDeleteGuideline={handleDeleteGuideline}
+            onToggleGuideline={handleToggleGuideline}
           />
         );
       case 'rules':

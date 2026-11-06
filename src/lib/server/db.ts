@@ -19,6 +19,7 @@ import {
   SEEDED_RULES,
   SEEDED_FACTS,
 } from '@/data/seedData';
+import { getMongoDb } from './mongodb';
 
 export interface DatabaseSchema {
   brand: Brand;
@@ -40,7 +41,7 @@ function getDefaultData(): DatabaseSchema {
   return {
     brand: SEEDED_BRAND,
     users: SEEDED_USERS,
-    guidelines: SEEDED_GUIDELINES,
+    guidelines: SEEDED_GUIDELINES.map((g) => ({ ...g, enabled: true })),
     rules: SEEDED_RULES,
     facts: SEEDED_FACTS,
     submissions: [],
@@ -76,14 +77,89 @@ function getDefaultData(): DatabaseSchema {
 
 class ServerDatabase {
   private inMemoryData: DatabaseSchema | null = null;
+  private mongoInitialized: boolean = false;
 
   private ensureDataDir() {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-    } catch {
-      // Ignore if running in a read-only environment
+    } catch {}
+  }
+
+  // Asynchronously syncs in-memory data with MongoDB Atlas
+  private async syncToMongo(collectionName: keyof DatabaseSchema, data: any) {
+    try {
+      const db = await getMongoDb();
+      if (Array.isArray(data)) {
+        const collection = db.collection(collectionName);
+        await collection.deleteMany({});
+        if (data.length > 0) {
+          await collection.insertMany(data.map((item) => ({ ...item, _id: item.id || undefined })));
+        }
+      } else {
+        const collection = db.collection(collectionName);
+        await collection.replaceOne({}, { ...data, _id: data.id || 'singleton' }, { upsert: true });
+      }
+    } catch (e) {
+      console.warn(`MongoDB async sync failed for ${collectionName}:`, (e as Error).message);
+    }
+  }
+
+  public async initFromMongo(): Promise<void> {
+    if (this.mongoInitialized) return;
+    try {
+      const db = await getMongoDb();
+      const collections = await db.listCollections().toArray();
+      const colNames = collections.map((c) => c.name);
+
+      if (colNames.includes('guidelines') && colNames.includes('rules')) {
+        // Load collections from MongoDB
+        const [brand, users, guidelines, rules, facts, submissions, issues, reviews, audit_logs] =
+          await Promise.all([
+            db.collection<Brand>('brand').findOne({}),
+            db.collection<User>('users').find({}).toArray(),
+            db.collection<Guideline>('guidelines').find({}).toArray(),
+            db.collection<Rule>('rules').find({}).toArray(),
+            db.collection<Fact>('facts').find({}).toArray(),
+            db.collection<Submission>('submissions').find({}).toArray(),
+            db.collection<Issue>('issues').find({}).toArray(),
+            db.collection<Review>('reviews').find({}).toArray(),
+            db.collection<AuditLog>('audit_logs').find({}).toArray(),
+          ]);
+
+        if (guidelines && guidelines.length > 0) {
+          const loaded: DatabaseSchema = {
+            brand: brand || SEEDED_BRAND,
+            users: users.length > 0 ? users : SEEDED_USERS,
+            guidelines: guidelines.map((g) => ({ ...g, enabled: g.enabled !== false })),
+            rules: rules.length > 0 ? rules : SEEDED_RULES,
+            facts: facts.length > 0 ? facts : SEEDED_FACTS,
+            submissions: submissions || [],
+            submission_texts: [],
+            issues: issues || [],
+            reviews: reviews || [],
+            audit_logs: audit_logs || [],
+          };
+          this.writeDb(loaded);
+          this.mongoInitialized = true;
+          return;
+        }
+      }
+
+      // If empty in MongoDB, seed initial data to MongoDB
+      const defaultData = this.readDb();
+      await Promise.all([
+        this.syncToMongo('brand', defaultData.brand),
+        this.syncToMongo('users', defaultData.users),
+        this.syncToMongo('guidelines', defaultData.guidelines),
+        this.syncToMongo('rules', defaultData.rules),
+        this.syncToMongo('facts', defaultData.facts),
+        this.syncToMongo('audit_logs', defaultData.audit_logs),
+      ]);
+      this.mongoInitialized = true;
+    } catch (e) {
+      console.warn('MongoDB init/seed fallback to local storage:', (e as Error).message);
     }
   }
 
@@ -119,6 +195,15 @@ class ServerDatabase {
   public resetToSeed(): DatabaseSchema {
     const data = getDefaultData();
     this.writeDb(data);
+    this.syncToMongo('brand', data.brand);
+    this.syncToMongo('users', data.users);
+    this.syncToMongo('guidelines', data.guidelines);
+    this.syncToMongo('rules', data.rules);
+    this.syncToMongo('facts', data.facts);
+    this.syncToMongo('submissions', data.submissions);
+    this.syncToMongo('issues', data.issues);
+    this.syncToMongo('reviews', data.reviews);
+    this.syncToMongo('audit_logs', data.audit_logs);
     return data;
   }
 
@@ -131,6 +216,7 @@ class ServerDatabase {
     const data = this.readDb();
     data.brand = { ...data.brand, ...updates };
     this.writeDb(data);
+    this.syncToMongo('brand', data.brand);
     return data.brand;
   }
 
@@ -164,11 +250,13 @@ class ServerDatabase {
       filename,
       raw_text,
       status: 'pending',
+      enabled: true,
       created_at: new Date().toISOString(),
       rules_count: 0,
     };
     data.guidelines.unshift(newGl);
     this.writeDb(data);
+    this.syncToMongo('guidelines', data.guidelines);
 
     this.createAuditLog({
       actor_id: data.users[0]?.id || 'system',
@@ -189,7 +277,72 @@ class ServerDatabase {
     if (index === -1) return undefined;
     data.guidelines[index] = { ...data.guidelines[index], ...updates };
     this.writeDb(data);
+    this.syncToMongo('guidelines', data.guidelines);
     return data.guidelines[index];
+  }
+
+  public deleteGuideline(id: string, actorId?: string): boolean {
+    const data = this.readDb();
+    const target = data.guidelines.find((g) => g.id === id);
+    if (!target) return false;
+
+    // Remove guideline
+    data.guidelines = data.guidelines.filter((g) => g.id !== id);
+
+    // Remove associated rules
+    data.rules = data.rules.filter((r) => r.guideline_id !== id);
+
+    this.writeDb(data);
+    this.syncToMongo('guidelines', data.guidelines);
+    this.syncToMongo('rules', data.rules);
+
+    const actor = actorId ? this.getUserById(actorId) : data.users[0];
+    this.createAuditLog({
+      actor_id: actor?.id || 'admin',
+      actor_name: actor?.name || 'Sarah Chen',
+      actor_role: actor?.role || 'admin',
+      action: 'rule_updated',
+      entity: 'guideline',
+      entity_id: id,
+      meta: { type: 'deleted', filename: target.filename },
+    });
+
+    return true;
+  }
+
+  public toggleGuideline(id: string, enabled: boolean, actorId?: string): Guideline | undefined {
+    const data = this.readDb();
+    const target = data.guidelines.find((g) => g.id === id);
+    if (!target) return undefined;
+
+    target.enabled = enabled;
+    // If disabled, its rules are drafted/deactivated; if enabled and extracted, set to confirmed
+    target.status = enabled ? (target.status === 'disabled' ? 'confirmed' : target.status) : 'disabled';
+
+    // Synchronize status to associated rules
+    data.rules = data.rules.map((r) => {
+      if (r.guideline_id === id) {
+        return { ...r, status: enabled ? 'confirmed' : 'draft' };
+      }
+      return r;
+    });
+
+    this.writeDb(data);
+    this.syncToMongo('guidelines', data.guidelines);
+    this.syncToMongo('rules', data.rules);
+
+    const actor = actorId ? this.getUserById(actorId) : data.users[0];
+    this.createAuditLog({
+      actor_id: actor?.id || 'admin',
+      actor_name: actor?.name || 'Sarah Chen',
+      actor_role: actor?.role || 'admin',
+      action: 'guideline_confirmed',
+      entity: 'guideline',
+      entity_id: id,
+      meta: { enabled, action: enabled ? 'enabled' : 'disabled' },
+    });
+
+    return target;
   }
 
   public confirmGuideline(id: string, actorId?: string): { guideline: Guideline; rulesCount: number } | undefined {
@@ -198,6 +351,7 @@ class ServerDatabase {
     if (!gl) return undefined;
 
     gl.status = 'confirmed';
+    gl.enabled = true;
     let count = 0;
     data.rules = data.rules.map((r) => {
       if (r.guideline_id === id) {
@@ -208,6 +362,8 @@ class ServerDatabase {
     });
 
     this.writeDb(data);
+    this.syncToMongo('guidelines', data.guidelines);
+    this.syncToMongo('rules', data.rules);
 
     const actor = actorId ? this.getUserById(actorId) : data.users[0];
     this.createAuditLog({
@@ -244,13 +400,14 @@ class ServerDatabase {
     };
     data.rules.push(newRule);
 
-    // Update rules count on guideline
     const gl = data.guidelines.find((g) => g.id === newRule.guideline_id);
     if (gl) {
       gl.rules_count = data.rules.filter((r) => r.guideline_id === gl.id).length;
     }
 
     this.writeDb(data);
+    this.syncToMongo('rules', data.rules);
+    this.syncToMongo('guidelines', data.guidelines);
 
     const actor = actorId ? this.getUserById(actorId) : data.users[0];
     this.createAuditLog({
@@ -272,6 +429,7 @@ class ServerDatabase {
     if (idx === -1) return undefined;
     data.rules[idx] = { ...data.rules[idx], ...updates };
     this.writeDb(data);
+    this.syncToMongo('rules', data.rules);
 
     const actor = actorId ? this.getUserById(actorId) : data.users[0];
     this.createAuditLog({
@@ -300,6 +458,8 @@ class ServerDatabase {
     }
 
     this.writeDb(data);
+    this.syncToMongo('rules', data.rules);
+    this.syncToMongo('guidelines', data.guidelines);
 
     const actor = actorId ? this.getUserById(actorId) : data.users[0];
     this.createAuditLog({
@@ -327,6 +487,8 @@ class ServerDatabase {
     }
 
     this.writeDb(data);
+    this.syncToMongo('rules', data.rules);
+    this.syncToMongo('guidelines', data.guidelines);
     return newRules;
   }
 
@@ -349,6 +511,7 @@ class ServerDatabase {
     };
     data.facts.unshift(newFact);
     this.writeDb(data);
+    this.syncToMongo('facts', data.facts);
     return newFact;
   }
 
@@ -358,6 +521,7 @@ class ServerDatabase {
     if (idx === -1) return undefined;
     data.facts[idx] = { ...data.facts[idx], ...updates };
     this.writeDb(data);
+    this.syncToMongo('facts', data.facts);
     return data.facts[idx];
   }
 
@@ -367,6 +531,7 @@ class ServerDatabase {
     data.facts = data.facts.filter((f) => f.id !== id);
     if (data.facts.length !== initialLen) {
       this.writeDb(data);
+      this.syncToMongo('facts', data.facts);
       return true;
     }
     return false;
@@ -409,6 +574,7 @@ class ServerDatabase {
 
     db.submissions.unshift(newSub);
     this.writeDb(db);
+    this.syncToMongo('submissions', db.submissions);
 
     this.createAuditLog({
       actor_id: newSub.creator_id,
@@ -429,6 +595,7 @@ class ServerDatabase {
     if (idx === -1) return undefined;
     data.submissions[idx] = { ...data.submissions[idx], ...updates };
     this.writeDb(data);
+    this.syncToMongo('submissions', data.submissions);
     return data.submissions[idx];
   }
 
@@ -449,6 +616,7 @@ class ServerDatabase {
     const data = this.readDb();
     data.issues = [...data.issues.filter((i) => i.submission_id !== submissionId), ...newIssues];
     this.writeDb(data);
+    this.syncToMongo('issues', data.issues);
     return newIssues;
   }
 
@@ -462,7 +630,6 @@ class ServerDatabase {
     const sub = data.submissions.find((s) => s.id === issue.submission_id);
     if (sub) {
       sub.caption = updatedCaption;
-      // Recalculate risk score for remaining open issues
       const remainingOpen = data.issues.filter((i) => i.submission_id === sub.id && i.status === 'open');
       const newRaw = remainingOpen.reduce((acc, curr) => {
         const weight = curr.severity === 'high' ? 35 : curr.severity === 'med' ? 18 : 8;
@@ -477,6 +644,8 @@ class ServerDatabase {
     }
 
     this.writeDb(data);
+    this.syncToMongo('issues', data.issues);
+    this.syncToMongo('submissions', data.submissions);
 
     const actor = actorId ? this.getUserById(actorId) : data.users[1];
     this.createAuditLog({
@@ -522,7 +691,6 @@ class ServerDatabase {
 
     db.reviews.push(newRev);
 
-    // Update submission
     const sub = db.submissions.find((s) => s.id === data.submission_id);
     if (sub) {
       sub.status = 'reviewed';
@@ -530,6 +698,8 @@ class ServerDatabase {
     }
 
     this.writeDb(db);
+    this.syncToMongo('reviews', db.reviews);
+    this.syncToMongo('submissions', db.submissions);
 
     this.createAuditLog({
       actor_id: newRev.reviewer_id,
@@ -557,14 +727,14 @@ class ServerDatabase {
       created_at: new Date().toISOString(),
     };
     data.audit_logs.unshift(log);
-    // Keep max 200 logs
     if (data.audit_logs.length > 200) {
       data.audit_logs = data.audit_logs.slice(0, 200);
     }
     this.writeDb(data);
+    this.syncToMongo('audit_logs', data.audit_logs);
     return log;
   }
 }
 
 export const serverDb = new ServerDatabase();
-
+serverDb.initFromMongo().catch((e) => console.warn('serverDb initFromMongo non-blocking error:', e.message));
