@@ -1,6 +1,9 @@
 import { MongoClient, Db } from 'mongodb';
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://ahteshamofficial357_db_user:lddrFRpqpVQebJI5@cluster0.v5shpsd.mongodb.net/brandlint?retryWrites=true&w=majority';
+const uri =
+  process.env.MONGODB_URI ||
+  process.env.MONGODB_URL ||
+  'mongodb+srv://ahteshamofficial357_db_user:lddrFRpqpVQebJI5@cluster0.v5shpsd.mongodb.net/brandlint?retryWrites=true&w=majority';
 
 let client: MongoClient | null = null;
 let clientPromise: Promise<MongoClient> | null = null;

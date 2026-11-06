@@ -111,7 +111,7 @@ class ServerDatabase {
     try {
       const db = await getMongoDb();
       const collections = await db.listCollections().toArray();
-      const colNames = collections.map((c) => c.name);
+      const colNames = collections.map((c: any) => c.name);
 
       if (colNames.includes('guidelines') && colNames.includes('rules')) {
         // Load collections from MongoDB
@@ -132,7 +132,7 @@ class ServerDatabase {
           const loaded: DatabaseSchema = {
             brand: brand || SEEDED_BRAND,
             users: users.length > 0 ? users : SEEDED_USERS,
-            guidelines: guidelines.map((g) => ({ ...g, enabled: g.enabled !== false })),
+            guidelines: guidelines.map((g: any) => ({ ...g, enabled: g.enabled !== false })),
             rules: rules.length > 0 ? rules : SEEDED_RULES,
             facts: facts.length > 0 ? facts : SEEDED_FACTS,
             submissions: submissions || [],
