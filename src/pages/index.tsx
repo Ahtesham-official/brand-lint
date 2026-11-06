@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { api } from '@/lib/api';
 import { store } from '@/lib/store';
 import {
@@ -25,6 +26,7 @@ import { AuditPage } from '@/components/reviewer/AuditPage';
 import { DemoGuideModal } from '@/components/demo/DemoGuideModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { GroqKeyModal } from '@/components/demo/GroqKeyModal';
+import { LandingPage } from '@/components/landing/LandingPage';
 import { DEMO_SUBMISSION_INITIAL, SEEDED_USERS } from '@/data/seedData';
 
 const DEFAULT_PAGE: Record<UserRole, Page> = {
@@ -34,8 +36,12 @@ const DEFAULT_PAGE: Record<UserRole, Page> = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [isClient, setIsClient] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Active organisation context (null = landing page)
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
 
   // Core state synced with server database
   const [currentUser, setCurrentUser] = useState<User>(SEEDED_USERS[0]);
@@ -53,6 +59,56 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
   const [groqActive, setGroqActive] = useState(false);
+
+  // Sync activeOrgId from URL query param (?org=...)
+  useEffect(() => {
+    if (router.isReady) {
+      const orgParam = router.query.org;
+      if (typeof orgParam === 'string' && orgParam.trim()) {
+        setActiveOrgId(orgParam.trim());
+      } else {
+        setActiveOrgId(null);
+      }
+    }
+  }, [router.isReady, router.query.org]);
+
+  // Sync brand and user role when entering an organisation
+  useEffect(() => {
+    if (activeOrgId) {
+      fetch(`/api/orgs/${activeOrgId}?userId=${encodeURIComponent(currentUser.id)}`, {
+        headers: { 'x-user-id': currentUser.id },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.organization) {
+            setBrand((prev) => ({
+              ...prev,
+              name: data.organization.name,
+              tagline: data.organization.description || prev.tagline,
+            }));
+            if (data.organization.user_role) {
+              setCurrentUser((prev) => ({
+                ...prev,
+                role: data.organization.user_role,
+              }));
+              setActivePage(DEFAULT_PAGE[data.organization.user_role as UserRole] || 'guidelines');
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [activeOrgId, currentUser.id]);
+
+  const handleEnterOrg = (orgId: string) => {
+    setActiveOrgId(orgId);
+    setActivePage(DEFAULT_PAGE[currentUser.role] || 'guidelines');
+    router.push(`/?org=${encodeURIComponent(orgId)}`, undefined, { shallow: true });
+  };
+
+  const handleExitOrg = () => {
+    setActiveOrgId(null);
+    router.push('/', undefined, { shallow: true });
+  };
 
   // Check Groq status
   const checkGroqStatus = useCallback(() => {
@@ -429,6 +485,29 @@ export default function Home() {
     }
   };
 
+  // Initial landing page: Sidebar is completely HIDDEN, full screen width
+  if (!activeOrgId) {
+    return (
+      <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+        <LandingPage
+          currentUser={currentUser}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onEnterOrg={handleEnterOrg}
+        />
+
+        {/* Auth / Fast 1-Click Login Modal */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          currentUser={currentUser}
+          onLoginAsRole={handleRoleChange}
+          onLoginAsUser={handleLoginAsUser}
+        />
+      </div>
+    );
+  }
+
+  // Inside an organisation: Sidebar is VISIBLE
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
       <Sidebar
@@ -447,6 +526,7 @@ export default function Home() {
         groqActive={groqActive}
         activeRulesCount={activeRulesCount}
         factsCount={facts.length}
+        onExitOrg={handleExitOrg}
       />
 
       <main className="flex-1 min-w-0 overflow-y-auto">

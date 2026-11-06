@@ -14,9 +14,11 @@ import {
   History,
   Sparkles,
   Cpu,
+  Building2,
+  ArrowLeft,
 } from 'lucide-react';
 
-export type Page = 'guidelines' | 'rules' | 'facts' | 'brand' | 'submit' | 'submissions' | 'review' | 'audit';
+export type Page = 'dashboard' | 'guidelines' | 'rules' | 'facts' | 'brand' | 'submit' | 'submissions' | 'review' | 'audit';
 
 interface SidebarProps {
   brand: Brand;
@@ -31,6 +33,7 @@ interface SidebarProps {
   groqActive: boolean;
   activeRulesCount: number;
   factsCount: number;
+  onExitOrg?: () => void;
 }
 
 const NAV_ITEMS: { page: Page; label: string; icon: React.ElementType; roles: UserRole[] }[] = [
@@ -63,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   groqActive,
   activeRulesCount,
   factsCount,
+  onExitOrg,
 }) => {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(currentUser.role));
 
@@ -70,15 +74,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="w-60 h-screen sticky top-0 flex flex-col border-r border-slate-200/90 bg-white shrink-0">
       {/* Brand & App Title */}
       <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+        <button
+          onClick={onExitOrg}
+          className="flex items-center gap-2.5 text-left group transition-all"
+          title="Return to Landing Page"
+        >
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm group-hover:bg-blue-700 transition-colors">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-bold text-sm text-slate-900 tracking-tight">BrandLint</span>
+            <span className="font-bold text-sm text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">BrandLint</span>
             <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono ml-1.5">v1.0</span>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Brand Pill */}
@@ -92,6 +100,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="text-xs font-semibold text-slate-800 truncate">{brand.name}</span>
           <span className="text-[10px] text-slate-400 ml-auto font-mono">Governed</span>
         </div>
+
+        {onExitOrg && (
+          <button
+            onClick={onExitOrg}
+            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors mt-1.5"
+            title="Leave workspace and return to landing page"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
+            <span>Switch Organisation</span>
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -123,6 +142,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
+
+        <a
+          href="/orgs"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all"
+        >
+          <Building2 className="w-4 h-4 text-slate-400" />
+          <span className="flex-1 text-left">Organisations</span>
+        </a>
       </nav>
 
       {/* Bottom tools & role switcher */}
