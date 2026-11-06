@@ -183,3 +183,4 @@ CREATE POLICY "Public full access on submission_text" ON submission_text FOR ALL
 CREATE POLICY "Public full access on issues" ON issues FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access on reviews" ON reviews FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access on audit_logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
+

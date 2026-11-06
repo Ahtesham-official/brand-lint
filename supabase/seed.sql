@@ -251,3 +251,4 @@ VALUES
     'Audit period expired; pending 2025 re-certification.'
   )
 ON CONFLICT (id) DO NOTHING;
+

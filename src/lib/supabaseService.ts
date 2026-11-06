@@ -215,3 +215,4 @@ export async function insertAuditLogInDb(log: AuditLog): Promise<boolean> {
   const { error } = await supabase.from('audit_logs').insert(log);
   return !error;
 }
+
