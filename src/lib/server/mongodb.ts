@@ -1,6 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://ahteshamofficial357_db_user:lddrFRpqpVQebJI5@cluster0.v5shpsd.mongodb.net/brandlint?retryWrites=true&w=majority';
+const uri = process.env.MONGODB_URI || process.env.MONGODB_URL || '';
 
 let client: MongoClient | null = null;
 let clientPromise: Promise<MongoClient> | null = null;
@@ -10,7 +10,15 @@ declare global {
   var _mongoClientPromise: Promise<MongoClient> | undefined;
 }
 
+export function isMongoConfigured(): boolean {
+  return typeof uri === 'string' && uri.trim().length > 0;
+}
+
 export function getMongoClientPromise(): Promise<MongoClient> {
+  if (!uri) {
+    return Promise.reject(new Error('MONGODB_URI is not configured in environment variables.'));
+  }
+
   if (process.env.NODE_ENV === 'development') {
     if (!global._mongoClientPromise) {
       client = new MongoClient(uri, {
