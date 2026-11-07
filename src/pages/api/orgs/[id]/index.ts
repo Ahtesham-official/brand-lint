@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getOrganizationById, deleteOrganization } from '@/lib/orgService';
+import { getOrganizationById, getOrganizationMembers, deleteOrganization } from '@/lib/orgService';
 import { requireOrgRole } from '@/lib/orgPermissions';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { Organization, OrganizationMember, OrganizationInvite, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
+import { getMongoDb, isMongoConfigured } from '@/lib/server/mongodb';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const ORG_DB_FILE = path.join(DATA_DIR, 'organizations.json');
@@ -97,6 +97,50 @@ function getUserMeta(userId: string) {
   return { name: `User (${userId.slice(0, 6)})`, email: `${userId}@brandlint.ai` };
 }
 
+// --- MongoDB Helpers ---
+
+async function syncOrgToMongo(doc: Organization) {
+  if (!isMongoConfigured()) return;
+  try {
+    const db = await getMongoDb();
+    await db.collection('organizations').replaceOne(
+      { id: doc.id },
+      { ...doc, _id: doc.id as any },
+      { upsert: true }
+    );
+  } catch (e) {
+    console.warn('Mongo org sync failed:', (e as Error).message);
+  }
+}
+
+async function syncMemberToMongo(doc: OrganizationMember) {
+  if (!isMongoConfigured()) return;
+  try {
+    const db = await getMongoDb();
+    await db.collection('organization_members').replaceOne(
+      { id: doc.id },
+      { ...doc, _id: doc.id as any },
+      { upsert: true }
+    );
+  } catch (e) {
+    console.warn('Mongo member sync failed:', (e as Error).message);
+  }
+}
+
+async function syncInviteToMongo(doc: OrganizationInvite) {
+  if (!isMongoConfigured()) return;
+  try {
+    const db = await getMongoDb();
+    await db.collection('organization_invites').replaceOne(
+      { id: doc.id },
+      { ...doc, _id: doc.id as any },
+      { upsert: true }
+    );
+  } catch (e) {
+    console.warn('Mongo invite sync failed:', (e as Error).message);
+  }
+}
+
 // --- Service Methods ---
 
 export async function createOrganization(params: {
@@ -126,30 +170,11 @@ export async function createOrganization(params: {
     user_email: userMeta.email,
   };
 
-  // Try Supabase first if available
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const { error: orgErr } = await supabase.from('organizations').insert({
-        id: newOrg.id,
-        name: newOrg.name,
-        description: newOrg.description,
-        created_by: newOrg.created_by,
-        created_at: newOrg.created_at,
-      });
-
-      if (!orgErr) {
-        await supabase.from('organization_members').insert({
-          id: newMember.id,
-          org_id: newMember.org_id,
-          user_id: newMember.user_id,
-          role: newMember.role,
-          joined_at: newMember.joined_at,
-        });
-      }
-    } catch {
-      // Fallback to local store below
-    }
-  }
+  // Sync to MongoDB if configured
+  await Promise.all([
+    syncOrgToMongo(newOrg),
+    syncMemberToMongo(newMember),
+  ]);
 
   // Always sync to local store for reliability
   const store = readLocalOrgStore();
@@ -161,27 +186,32 @@ export async function createOrganization(params: {
 }
 
 export async function getUserOrganizations(userId: string): Promise<Organization[]> {
-  // If Supabase is configured, attempt fetch
-  if (isSupabaseConfigured() && supabase) {
+  // If MongoDB is configured, attempt fetch
+  if (isMongoConfigured()) {
     try {
-      const { data: memberRows, error: memErr } = await supabase
-        .from('organization_members')
-        .select('org_id, role')
-        .eq('user_id', userId);
+      const db = await getMongoDb();
+      const memberRows = await db
+        .collection<OrganizationMember>('organization_members')
+        .find({ user_id: userId })
+        .toArray();
 
-      if (!memErr && memberRows && memberRows.length > 0) {
+      if (memberRows && memberRows.length > 0) {
         const orgIds = memberRows.map((m) => m.org_id);
-        const { data: orgRows, error: orgErr } = await supabase
-          .from('organizations')
-          .select('*')
-          .in('id', orgIds)
-          .order('created_at', { ascending: false });
+        const orgRows = await db
+          .collection<Organization>('organizations')
+          .find({ id: { $in: orgIds } })
+          .sort({ created_at: -1 })
+          .toArray();
 
-        if (!orgErr && orgRows) {
+        if (orgRows && orgRows.length > 0) {
           return orgRows.map((org) => {
             const mem = memberRows.find((m) => m.org_id === org.id);
             return {
-              ...org,
+              id: org.id,
+              name: org.name,
+              description: org.description,
+              created_by: org.created_by,
+              created_at: org.created_at,
               role: mem?.role as OrgRole,
             };
           });
@@ -212,35 +242,32 @@ export async function getOrganizationById(
   orgId: string,
   userId?: string
 ): Promise<(Organization & { member_count: number; user_role?: OrgRole }) | null> {
-  // Try Supabase first
-  if (isSupabaseConfigured() && supabase) {
+  // Try MongoDB first
+  if (isMongoConfigured()) {
     try {
-      const { data: org, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', orgId)
-        .single();
+      const db = await getMongoDb();
+      const org = await db.collection<Organization>('organizations').findOne({ id: orgId });
 
-      if (!error && org) {
-        const { count } = await supabase
-          .from('organization_members')
-          .select('id', { count: 'exact', head: true })
-          .eq('org_id', orgId);
+      if (org) {
+        const memberCount = await db
+          .collection('organization_members')
+          .countDocuments({ org_id: orgId });
 
         let userRole: OrgRole | undefined;
         if (userId) {
-          const { data: mem } = await supabase
-            .from('organization_members')
-            .select('role')
-            .eq('org_id', orgId)
-            .eq('user_id', userId)
-            .single();
+          const mem = await db
+            .collection<OrganizationMember>('organization_members')
+            .findOne({ org_id: orgId, user_id: userId });
           if (mem) userRole = mem.role as OrgRole;
         }
 
         return {
-          ...org,
-          member_count: count ?? 1,
+          id: org.id,
+          name: org.name,
+          description: org.description,
+          created_by: org.created_by,
+          created_at: org.created_at,
+          member_count: memberCount || 1,
           user_role: userRole,
         };
       }
@@ -262,21 +289,26 @@ export async function getOrganizationById(
 }
 
 export async function getOrganizationMembers(orgId: string): Promise<OrganizationMember[]> {
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select('*')
-        .eq('org_id', orgId)
-        .order('joined_at', { ascending: true });
+      const db = await getMongoDb();
+      const members = await db
+        .collection<OrganizationMember>('organization_members')
+        .find({ org_id: orgId })
+        .sort({ joined_at: 1 })
+        .toArray();
 
-      if (!error && data) {
-        return data.map((m) => {
+      if (members && members.length > 0) {
+        return members.map((m) => {
           const meta = getUserMeta(m.user_id);
           return {
-            ...m,
-            user_name: meta.name,
-            user_email: meta.email,
+            id: m.id,
+            org_id: m.org_id,
+            user_id: m.user_id,
+            role: m.role,
+            joined_at: m.joined_at,
+            user_name: m.user_name || meta.name,
+            user_email: m.user_email || meta.email,
           };
         });
       }
@@ -297,17 +329,15 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
 }
 
 export async function getMemberRole(orgId: string, userId: string): Promise<OrgRole | null> {
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select('role')
-        .eq('org_id', orgId)
-        .eq('user_id', userId)
-        .single();
+      const db = await getMongoDb();
+      const member = await db
+        .collection<OrganizationMember>('organization_members')
+        .findOne({ org_id: orgId, user_id: userId });
 
-      if (!error && data) {
-        return data.role as OrgRole;
+      if (member) {
+        return member.role as OrgRole;
       }
     } catch {}
   }
@@ -343,11 +373,7 @@ export async function createInvite(params: {
     created_at: now,
   };
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('organization_invites').insert(invite);
-    } catch {}
-  }
+  await syncInviteToMongo(invite);
 
   const store = readLocalOrgStore();
   store.invites.push(invite);
@@ -361,23 +387,29 @@ export async function getInviteByToken(
 ): Promise<(OrganizationInvite & { org_name: string }) | null> {
   const cleanToken = token.trim();
 
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      const { data: inv, error } = await supabase
-        .from('organization_invites')
-        .select('*')
-        .eq('token', cleanToken)
-        .single();
+      const db = await getMongoDb();
+      const inv = await db
+        .collection<OrganizationInvite>('organization_invites')
+        .findOne({ token: cleanToken });
 
-      if (!error && inv) {
-        const { data: org } = await supabase
-          .from('organizations')
-          .select('name')
-          .eq('id', inv.org_id)
-          .single();
+      if (inv) {
+        const org = await db
+          .collection<Organization>('organizations')
+          .findOne({ id: inv.org_id });
 
         return {
-          ...inv,
+          id: inv.id,
+          org_id: inv.org_id,
+          token: inv.token,
+          role: inv.role,
+          expires_at: inv.expires_at,
+          max_uses: inv.max_uses,
+          uses_count: inv.uses_count,
+          created_by: inv.created_by,
+          revoked: inv.revoked,
+          created_at: inv.created_at,
           org_name: org?.name || 'Organization',
         };
       }
@@ -440,13 +472,17 @@ export async function joinOrganizationByToken(params: {
     user_email: userMeta.email,
   };
 
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      await supabase.from('organization_members').insert(newMember);
-      await supabase
-        .from('organization_invites')
-        .update({ uses_count: invite.uses_count + 1 })
-        .eq('id', invite.id);
+      const db = await getMongoDb();
+      await db.collection('organization_members').replaceOne(
+        { id: newMember.id },
+        { ...newMember, _id: newMember.id as any },
+        { upsert: true }
+      );
+      await db
+        .collection('organization_invites')
+        .updateOne({ id: invite.id }, { $inc: { uses_count: 1 } });
     } catch {}
   }
 
@@ -491,13 +527,15 @@ export async function updateMemberRole(params: {
 
   member.role = params.newRole;
 
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      await supabase
-        .from('organization_members')
-        .update({ role: params.newRole })
-        .eq('org_id', params.orgId)
-        .eq('user_id', params.targetUserId);
+      const db = await getMongoDb();
+      await db
+        .collection('organization_members')
+        .updateOne(
+          { org_id: params.orgId, user_id: params.targetUserId },
+          { $set: { role: params.newRole } }
+        );
     } catch {}
   }
 
@@ -532,13 +570,12 @@ export async function removeMember(params: {
     (m) => !(m.org_id === params.orgId && m.user_id === params.targetUserId)
   );
 
-  if (isSupabaseConfigured() && supabase) {
+  if (isMongoConfigured()) {
     try {
-      await supabase
-        .from('organization_members')
-        .delete()
-        .eq('org_id', params.orgId)
-        .eq('user_id', params.targetUserId);
+      const db = await getMongoDb();
+      await db
+        .collection('organization_members')
+        .deleteOne({ org_id: params.orgId, user_id: params.targetUserId });
     } catch {}
   }
 
@@ -571,27 +608,25 @@ export async function deleteOrganization(params: {
     throw new Error(`Confirmation name does not match. Expected "${org.name}".`);
   }
 
-  // 3. Database cleanup: Supabase (cascade)
-  if (isSupabaseConfigured() && supabase) {
+  // 3. Database cleanup: MongoDB cascade
+  if (isMongoConfigured()) {
     try {
-      await supabase.from('organization_invites').delete().eq('org_id', params.orgId);
-      await supabase.from('organization_members').delete().eq('org_id', params.orgId);
-      await supabase.from('organizations').delete().eq('id', params.orgId);
+      const db = await getMongoDb();
+      await Promise.all([
+        db.collection('organization_invites').deleteMany({ org_id: params.orgId }),
+        db.collection('organization_members').deleteMany({ org_id: params.orgId }),
+        db.collection('organizations').deleteOne({ id: params.orgId }),
+      ]);
     } catch (err) {
-      console.error('Error during Supabase org deletion:', err);
+      console.error('Error during Mongo org deletion:', err);
     }
   }
 
   // 4. Safe cleanup from local store (cascade)
-  // Delete the organisation itself
   store.organizations = store.organizations.filter((o) => o.id !== params.orgId);
-  // Delete all memberships for this organisation (leaving other orgs and users untouched)
   store.members = store.members.filter((m) => m.org_id !== params.orgId);
-  // Delete all invitation links for this organisation
   store.invites = store.invites.filter((i) => i.org_id !== params.orgId);
 
   writeLocalOrgStore(store);
   return true;
 }
-
-

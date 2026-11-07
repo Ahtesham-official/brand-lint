@@ -2,36 +2,9 @@ import {
   Brand, Guideline, Rule, Fact, User, Submission, Issue, Review, AuditLog, UserRole 
 } from '../types';
 import { 
-  SEEDED_BRAND, SEEDED_USERS, SEEDED_RULES, SEEDED_FACTS, SEEDED_GUIDELINES, DEMO_SUBMISSION_INITIAL 
+  SEEDED_BRAND, SEEDED_USERS, SEEDED_RULES, SEEDED_FACTS, SEEDED_GUIDELINES 
 } from '../data/seedData';
 import { runCheckEngine } from './checkEngine';
-import { isSupabaseConfigured } from './supabaseClient';
-import {
-  getBrandFromDb,
-  upsertBrandInDb,
-  getGuidelinesFromDb,
-  insertGuidelineInDb,
-  updateGuidelineStatusInDb,
-  getRulesFromDb,
-  upsertRulesInDb,
-  updateRuleInDb,
-  deleteRuleInDb,
-  confirmGuidelineRulesInDb,
-  getFactsFromDb,
-  insertFactInDb,
-  updateFactInDb,
-  deleteFactInDb,
-  getSubmissionsFromDb,
-  insertSubmissionInDb,
-  updateSubmissionInDb,
-  getIssuesFromDb,
-  insertIssuesInDb,
-  updateIssueInDb,
-  getReviewsFromDb,
-  insertReviewInDb,
-  getAuditLogsFromDb,
-  insertAuditLogInDb,
-} from './supabaseService';
 
 const STORAGE_KEYS = {
   BRAND: 'brandlint_brand',
@@ -86,55 +59,6 @@ class BrandLintStore {
       this.loadFromStorage();
     }
     this.initialized = true;
-    if (isSupabaseConfigured()) {
-      this.syncFromSupabase().catch((e) => console.warn('Supabase initial sync:', e));
-    }
-  }
-
-  public async syncFromSupabase() {
-    if (!isSupabaseConfigured()) return;
-    try {
-      const [dbBrand, dbGuidelines, dbRules, dbFacts, dbSubmissions, dbLogs] = await Promise.all([
-        getBrandFromDb(this.brand.id),
-        getGuidelinesFromDb(this.brand.id),
-        getRulesFromDb(),
-        getFactsFromDb(this.brand.id),
-        getSubmissionsFromDb(this.brand.id),
-        getAuditLogsFromDb(),
-      ]);
-
-      let changed = false;
-      if (dbBrand) {
-        this.brand = dbBrand;
-        changed = true;
-      }
-      if (dbGuidelines && dbGuidelines.length > 0) {
-        this.guidelines = dbGuidelines;
-        changed = true;
-      }
-      if (dbRules && dbRules.length > 0) {
-        this.rules = dbRules;
-        changed = true;
-      }
-      if (dbFacts && dbFacts.length > 0) {
-        this.facts = dbFacts;
-        changed = true;
-      }
-      if (dbSubmissions && dbSubmissions.length > 0) {
-        this.submissions = dbSubmissions;
-        changed = true;
-      }
-      if (dbLogs && dbLogs.length > 0) {
-        this.auditLogs = dbLogs;
-        changed = true;
-      }
-
-      if (changed) {
-        this.notify();
-      }
-    } catch (e) {
-      console.warn('Error syncing with Supabase:', e);
-    }
   }
 
   private loadFromStorage() {
@@ -265,7 +189,6 @@ class BrandLintStore {
   public updateBrand(updates: Partial<Brand>) {
     this.brand = { ...this.brand, ...updates };
     this.notify();
-    upsertBrandInDb(this.brand).catch(() => {});
   }
 
   // --- Guidelines ---
@@ -290,14 +213,12 @@ class BrandLintStore {
       meta: { filename, size: raw_text.length },
     });
     this.notify();
-    insertGuidelineInDb(newGuideline).catch(() => {});
     return newGuideline;
   }
 
   public updateGuidelineStatus(id: string, status: Guideline['status']) {
     this.guidelines = this.guidelines.map((g) => (g.id === id ? { ...g, status } : g));
     this.notify();
-    updateGuidelineStatusInDb(id, status).catch(() => {});
   }
 
   public confirmGuideline(id: string) {
@@ -315,8 +236,6 @@ class BrandLintStore {
       meta: { confirmed_rules_count: this.rules.filter((r) => r.guideline_id === id).length },
     });
     this.notify();
-    confirmGuidelineRulesInDb(id).catch(() => {});
-    updateGuidelineStatusInDb(id, 'confirmed').catch(() => {});
   }
 
   // --- Rules ---
@@ -345,7 +264,6 @@ class BrandLintStore {
       meta: { type: 'created', title: newRule.title },
     });
     this.notify();
-    upsertRulesInDb([newRule]).catch(() => {});
     return newRule;
   }
 
@@ -358,7 +276,6 @@ class BrandLintStore {
       meta: { updates },
     });
     this.notify();
-    updateRuleInDb(id, updates).catch(() => {});
   }
 
   public deleteRule(id: string) {
@@ -370,7 +287,6 @@ class BrandLintStore {
       meta: { type: 'deleted' },
     });
     this.notify();
-    deleteRuleInDb(id).catch(() => {});
   }
 
   public setRulesForGuideline(guidelineId: string, rules: Rule[]) {
@@ -380,8 +296,6 @@ class BrandLintStore {
       g.id === guidelineId ? { ...g, rules_count: rules.length, status: 'extracted' } : g
     );
     this.notify();
-    upsertRulesInDb(rules).catch(() => {});
-    updateGuidelineStatusInDb(guidelineId, 'extracted', rules.length).catch(() => {});
   }
 
   // --- Fact Vault ---
@@ -397,20 +311,17 @@ class BrandLintStore {
     };
     this.facts.unshift(newFact);
     this.notify();
-    insertFactInDb(newFact).catch(() => {});
     return newFact;
   }
 
   public updateFact(id: string, updates: Partial<Fact>) {
     this.facts = this.facts.map((f) => (f.id === id ? { ...f, ...updates } : f));
     this.notify();
-    updateFactInDb(id, updates).catch(() => {});
   }
 
   public deleteFact(id: string) {
     this.facts = this.facts.filter((f) => f.id !== id);
     this.notify();
-    deleteFactInDb(id).catch(() => {});
   }
 
   // --- Submissions & Check Engine ---
@@ -485,8 +396,6 @@ class BrandLintStore {
     });
 
     this.notify();
-    insertSubmissionInDb(newSubmission).catch(() => {});
-    insertIssuesInDb(result.issues).catch(() => {});
     return newSubmission;
   }
 
@@ -514,12 +423,6 @@ class BrandLintStore {
         submission.risk_score > 75 ? 'Critical' :
         submission.risk_score > 50 ? 'High' :
         submission.risk_score > 25 ? 'Moderate' : 'Low';
-
-      updateSubmissionInDb(submission.id, {
-        caption: updatedCaption,
-        risk_score: submission.risk_score,
-        risk_level: submission.risk_level,
-      }).catch(() => {});
     }
 
     this.addAuditLog({
@@ -530,7 +433,6 @@ class BrandLintStore {
     });
 
     this.notify();
-    updateIssueInDb(issueId, { status: 'fixed' }).catch(() => {});
   }
 
   // --- Reviews ---
@@ -568,11 +470,6 @@ class BrandLintStore {
     });
 
     this.notify();
-    insertReviewInDb(newReview).catch(() => {});
-    updateSubmissionInDb(submissionId, {
-      status: 'reviewed',
-      review_status: decision === 'approve' ? 'approved' : 'changes_requested',
-    }).catch(() => {});
     return newReview;
   }
 
@@ -599,9 +496,7 @@ class BrandLintStore {
       created_at: new Date().toISOString(),
     };
     this.auditLogs.unshift(log);
-    insertAuditLogInDb(log).catch(() => {});
   }
 }
 
 export const store = new BrandLintStore();
-
