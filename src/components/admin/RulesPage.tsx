@@ -43,7 +43,7 @@ const CATEGORIES: { value: FilterCategory; label: string }[] = [
 
 const SEVERITY_BADGE: Record<Severity, { bg: string; color: string; border: string }> = {
   high: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
-  med: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  med: { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
   low: { bg: 'var(--paper-mid)', color: 'var(--ink-mid)', border: 'var(--rule)' },
 };
 
@@ -214,7 +214,7 @@ const RulesPage: React.FC<RulesPageProps> = ({
             >
               <span>{cat.label}</span>
               {cat.value === 'needs_confirmation' && lowConfidenceCount > 0 && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '1px 6px', background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, padding: '1px 6px', background: '#e0f2fe', color: '#075985', border: '1px solid #7dd3fc' }}>
                   {lowConfidenceCount}
                 </span>
               )}
@@ -241,7 +241,7 @@ const RulesPage: React.FC<RulesPageProps> = ({
               key={rule.id}
               style={{
                 background: isLowConf ? '#fffbeb' : 'var(--white)',
-                border: `1px solid ${isLowConf ? '#fcd34d' : 'var(--rule)'}`,
+                border: `1px solid ${isLowConf ? '#7dd3fc' : 'var(--rule)'}`,
                 padding: '20px 24px',
                 transition: 'border-color 0.15s',
               }}
@@ -291,7 +291,7 @@ const RulesPage: React.FC<RulesPageProps> = ({
                       {rule.status}
                     </span>
                     {isLowConf && (
-                      <span className="badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}>
+                      <span className="badge" style={{ background: '#e0f2fe', color: '#075985', borderColor: '#7dd3fc' }}>
                         Needs confirmation
                       </span>
                     )}
@@ -353,9 +353,9 @@ const RulesPage: React.FC<RulesPageProps> = ({
 
                     {/* Required phrase */}
                     {rule.required_phrase && (
-                      <div style={{ background: '#fef3c7', padding: '12px 16px', border: '1px solid #fcd34d' }}>
-                        <span className="kicker" style={{ color: '#92400e', marginBottom: 6 }}>Mandatory Disclaimer</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#92400e' }}>
+                      <div style={{ background: '#e0f2fe', padding: '12px 16px', border: '1px solid #7dd3fc' }}>
+                        <span className="kicker" style={{ color: '#075985', marginBottom: 6 }}>Mandatory Disclaimer</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#075985' }}>
                           "{rule.required_phrase}"
                         </span>
                       </div>

@@ -19,7 +19,7 @@ interface AuthModalProps {
 }
 
 const ROLE_BADGE: Record<UserRole, { bg: string; text: string; border: string }> = {
-  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  admin: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
   creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
   reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
@@ -96,7 +96,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               width: 36,
               height: 36,
               background: 'var(--ink)',
-              color: '#fef3c7',
+              color: '#e0f2fe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

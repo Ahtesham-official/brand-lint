@@ -19,7 +19,7 @@ interface GuidelinesPageProps {
 }
 
 const STATUS: Record<GuidelineStatus, { bg: string; color: string; border: string; label: string }> = {
-  pending:   { bg: '#fef3c7', color: '#92400e', border: '#fcd34d',  label: 'Pending' },
+  pending:   { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc',  label: 'Pending' },
   extracted: { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe',  label: 'Extracted' },
   confirmed: { bg: '#f0fdf4', color: '#15803d', border: '#86efac',  label: 'Confirmed' },
   disabled:  { bg: 'var(--paper-mid)', color: 'var(--ink-faint)', border: 'var(--rule)', label: 'Disabled' },
@@ -154,7 +154,7 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
                       {new Date(gl.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                     </td>
                     <td>
-                      <span className="badge" style={{ background: selectedVer === 'enhanced' ? '#fef3c7' : 'transparent', color: selectedVer === 'enhanced' ? '#92400e' : 'var(--ink-faint)', borderColor: selectedVer === 'enhanced' ? '#fcd34d' : 'var(--rule)' }}>
+                      <span className="badge" style={{ background: selectedVer === 'enhanced' ? '#e0f2fe' : 'transparent', color: selectedVer === 'enhanced' ? '#075985' : 'var(--ink-faint)', borderColor: selectedVer === 'enhanced' ? '#7dd3fc' : 'var(--rule)' }}>
                         {selectedVer}
                       </span>
                     </td>

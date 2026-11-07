@@ -2,37 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Swiss Editorial Design System — Warm Beige + Neo-Brutalist 3D Touch ─── */
+/* ─── Swiss Editorial Design System — Cool Blue + Neo-Brutalist 3D Touch ─── */
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  /* ── Warm beige palette ── */
-  --paper:        #f7f3ee;      /* main background — warm cream */
-  --paper-mid:    #ede9e3;      /* subtle section bg */
-  --paper-dark:   #e0dbd3;      /* borders, dividers */
+  /* ── Cool blue palette ── */
+  --paper:        #f5f8fc;      /* main background */
+  --paper-mid:    #eaf1f8;      /* subtle section bg */
+  --paper-dark:   #d8e3ef;      /* borders, dividers */
   --white:        #ffffff;      /* card surfaces */
 
   /* ── Ink / text ── */
-  --ink:          #1c1917;      /* near-black, warm */
-  --ink-soft:     #292524;
-  --ink-mid:      #44403c;      /* warm deep slate-stone */
-  --ink-light:    #57534e;      /* clearly visible secondary text */
-  --ink-faint:    #78716c;      /* readable muted text */
+  --ink:          #102142;      /* deep navy */
+  --ink-soft:     #1a2e4d;
+  --ink-mid:      #344b69;
+  --ink-light:    #536983;      /* clearly visible secondary text */
+  --ink-faint:    #71849c;      /* readable muted text */
 
   /* ── Rules & borders ── */
-  --rule:         #d6d0c8;
-  --rule-dark:    #1c1917;
+  --rule:         #d5e0ec;
+  --rule-dark:    #102142;
 
   /* ── Accent ── */
-  --accent:       #b45309;      /* warm amber-brown editorial accent */
-  --accent-mid:   #d97706;
-  --accent-bg:    #fef3c7;
+  --accent:       #087df5;      /* logo blue */
+  --accent-mid:   #20b8d5;      /* logo cyan */
+  --accent-bg:    #e7f5ff;
 
   /* ── Semantic ── */
   --success:      #15803d;
   --success-bg:   #f0fdf4;
-  --warning:      #92400e;
-  --warning-bg:   #fef3c7;
+  --warning:      #075985;
+  --warning-bg:   #e0f2fe;
   --info:         #1e40af;
   --info-bg:      #eff6ff;
   --danger:       #b91c1c;
@@ -44,10 +44,10 @@
   --font-mono:  'JetBrains Mono', 'Courier New', monospace;
 
   /* ── Buttons / Primary Actions ── */
-  --btn-primary:       #b45309;      /* rich warm amber/terracotta */
-  --btn-primary-hover: #9a4306;
+  --btn-primary:       #087df5;
+  --btn-primary-hover: #0666d0;
   --btn-primary-text:  #ffffff;      /* crisp white contrast */
-  --btn-shadow:        #1c1917;      /* crisp solid 3D shadow */
+  --btn-shadow:        #102142;      /* crisp solid 3D shadow */
   --radius-btn:        4px;          /* subtle rounded corner */
 }
 
@@ -92,7 +92,7 @@ button:disabled:not(.btn-plain) {
   cursor: not-allowed;
   opacity: 0.5;
   border-radius: var(--radius-btn);
-  box-shadow: 1px 1px 0px rgba(28, 25, 23, 0.4);
+  box-shadow: 1px 1px 0px rgba(16, 33, 66, 0.4);
 }
 
 /* Plain / unstyled button reset (no box-shadow, no border, no 3D offset) */

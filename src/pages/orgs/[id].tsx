@@ -24,7 +24,7 @@ import { Organization, OrganizationMember, OrgRole, OrganizationInvite } from '@
 import { SEEDED_USERS } from '@/data/seedData';
 
 const ROLE_STYLES: Record<OrgRole, { bg: string; text: string; border: string }> = {
-  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  admin: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
   creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
   reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
@@ -268,9 +268,9 @@ export default function OrgDetailPage() {
                   textTransform: 'uppercase',
                   letterSpacing: '0.08em',
                   padding: '2px 8px',
-                  background: ROLE_STYLES[userRole]?.bg || '#fef3c7',
-                  color: ROLE_STYLES[userRole]?.text || '#92400e',
-                  border: `1px solid ${ROLE_STYLES[userRole]?.border || '#fcd34d'}`,
+                  background: ROLE_STYLES[userRole]?.bg || '#e0f2fe',
+                  color: ROLE_STYLES[userRole]?.text || '#075985',
+                  border: `1px solid ${ROLE_STYLES[userRole]?.border || '#7dd3fc'}`,
                 }}
               >
                 {userRole}

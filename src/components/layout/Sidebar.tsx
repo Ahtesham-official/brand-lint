@@ -1,9 +1,10 @@
 import React from 'react';
+import Image from 'next/image';
 import { User, UserRole, Brand } from '@/types';
 import {
   FileText, Database, PenTool, Eye, BookOpen, Palette,
   RefreshCw, PlayCircle, LogIn, History, Cpu, Building2,
-  ArrowLeft, Sparkles, ShieldCheck,
+  ArrowLeft, Sparkles,
 } from 'lucide-react';
 
 export type Page =
@@ -66,9 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: '100%', boxShadow: 'none', transform: 'none' }}
           title="Return to Landing"
         >
-          <div style={{ width: 34, height: 34, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <ShieldCheck style={{ width: 18, height: 18, color: '#fef3c7' }} />
-          </div>
+          <Image src="/brandlint-mark.png" alt="" width={168} height={120} priority style={{ width: 'auto', height: 34, objectFit: 'contain', flexShrink: 0 }} />
           <div style={{ textAlign: 'left' }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
               BrandLint
@@ -178,9 +177,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 12px',
-            background: groqActive ? '#fef3c7' : 'var(--paper-mid)',
+            background: groqActive ? '#e0f2fe' : 'var(--paper-mid)',
             color: groqActive ? 'var(--warning)' : 'var(--ink-mid)',
-            border: `1px solid ${groqActive ? '#fcd34d' : 'var(--rule)'}`,
+            border: `1px solid ${groqActive ? '#7dd3fc' : 'var(--rule)'}`,
             cursor: 'pointer', fontSize: 12, fontWeight: 500, width: '100%',
           }}
           title="Configure Groq GenAI"

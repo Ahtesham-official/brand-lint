@@ -30,7 +30,7 @@ interface CitedIssueReportProps {
 
 const SEVERITY_BADGE: Record<Severity, { bg: string; color: string; border: string }> = {
   high: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
-  med:  { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  med:  { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
   low:  { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
 };
 
@@ -93,9 +93,9 @@ const buildHighlightedCaption = (
         style={{
           cursor: 'pointer',
           padding: '2px 4px',
-          background: isHigh ? '#fee2e2' : '#fef3c7',
-          color: isHigh ? '#991b1b' : '#92400e',
-          borderBottom: `2px solid ${isHigh ? '#dc2626' : '#d97706'}`,
+          background: isHigh ? '#fee2e2' : '#e0f2fe',
+          color: isHigh ? '#991b1b' : '#075985',
+          borderBottom: `2px solid ${isHigh ? '#dc2626' : '#0ea5e9'}`,
         }}
         title={`Click to view citation: ${span.text}`}
       >
@@ -141,7 +141,7 @@ const IssueCard: React.FC<{
         {/* Header row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span className="badge" style={{ background: sevStyle.bg, color: sevStyle.color, borderColor: sevStyle.border }}>
-            {sevStyle.color === '#b91c1c' ? 'High' : sevStyle.color === '#92400e' ? 'Med' : 'Low'}
+            {sevStyle.color === '#b91c1c' ? 'High' : sevStyle.color === '#075985' ? 'Med' : 'Low'}
           </span>
           <span className="badge" style={{ background: 'var(--paper-mid)', color: 'var(--ink-mid)', borderColor: 'var(--rule)' }}>
             {categoryLabel(issue.category)}
@@ -312,8 +312,8 @@ const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
             style={{
               width: 68,
               height: 68,
-              background: submission.risk_score >= 70 ? '#fef2f2' : submission.risk_score >= 40 ? '#fef3c7' : '#f0fdf4',
-              border: `2px solid ${submission.risk_score >= 70 ? '#fca5a5' : submission.risk_score >= 40 ? '#fcd34d' : '#86efac'}`,
+              background: submission.risk_score >= 70 ? '#fef2f2' : submission.risk_score >= 40 ? '#e0f2fe' : '#f0fdf4',
+              border: `2px solid ${submission.risk_score >= 70 ? '#fca5a5' : submission.risk_score >= 40 ? '#7dd3fc' : '#86efac'}`,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -321,7 +321,7 @@ const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
               flexShrink: 0,
             }}
           >
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, color: submission.risk_score >= 70 ? '#b91c1c' : submission.risk_score >= 40 ? '#92400e' : '#15803d', lineHeight: 1 }}>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, color: submission.risk_score >= 70 ? '#b91c1c' : submission.risk_score >= 40 ? '#075985' : '#15803d', lineHeight: 1 }}>
               {submission.risk_score}
             </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginTop: 2 }}>

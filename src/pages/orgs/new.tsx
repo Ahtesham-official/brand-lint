@@ -74,7 +74,7 @@ export default function NewOrgPage() {
               width: 38,
               height: 38,
               background: 'var(--ink)',
-              color: '#fef3c7',
+              color: '#e0f2fe',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',

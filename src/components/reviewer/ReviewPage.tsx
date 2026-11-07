@@ -78,9 +78,9 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({
         <span
           className="badge"
           style={{
-            background: sub.risk_score >= 70 ? '#fef2f2' : sub.risk_score >= 40 ? '#fef3c7' : '#f0fdf4',
-            color: sub.risk_score >= 70 ? '#b91c1c' : sub.risk_score >= 40 ? '#92400e' : '#15803d',
-            borderColor: sub.risk_score >= 70 ? '#fca5a5' : sub.risk_score >= 40 ? '#fcd34d' : '#86efac',
+            background: sub.risk_score >= 70 ? '#fef2f2' : sub.risk_score >= 40 ? '#e0f2fe' : '#f0fdf4',
+            color: sub.risk_score >= 70 ? '#b91c1c' : sub.risk_score >= 40 ? '#075985' : '#15803d',
+            borderColor: sub.risk_score >= 70 ? '#fca5a5' : sub.risk_score >= 40 ? '#7dd3fc' : '#86efac',
           }}
         >
           Score: {sub.risk_score}

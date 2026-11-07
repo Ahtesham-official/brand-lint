@@ -16,7 +16,7 @@ import { OrganizationInvite, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
 
 const ROLE_STYLES: Record<OrgRole, { bg: string; text: string; border: string }> = {
-  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  admin: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
   creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
   reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
 };
@@ -256,7 +256,7 @@ export default function JoinOrgPage() {
                 width: 44,
                 height: 44,
                 background: 'var(--ink)',
-                color: '#fef3c7',
+                color: '#e0f2fe',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -308,9 +308,9 @@ export default function JoinOrgPage() {
                     padding: '2px 8px',
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
-                    background: ROLE_STYLES[invite.role]?.bg || '#fef3c7',
-                    color: ROLE_STYLES[invite.role]?.text || '#92400e',
-                    border: `1px solid ${ROLE_STYLES[invite.role]?.border || '#fcd34d'}`,
+                    background: ROLE_STYLES[invite.role]?.bg || '#e0f2fe',
+                    color: ROLE_STYLES[invite.role]?.text || '#075985',
+                    border: `1px solid ${ROLE_STYLES[invite.role]?.border || '#7dd3fc'}`,
                   }}
                 >
                   {invite.role}

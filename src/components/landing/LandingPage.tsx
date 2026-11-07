@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { ShieldCheck, Building2, UserPlus, ArrowRight, Plus, Link as LinkIcon, Loader2 } from 'lucide-react';
+import Image from 'next/image';
+import { Building2, UserPlus, ArrowRight, Plus, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { User } from '@/types';
 import { Organization, OrgRole } from '@/types/org';
 
@@ -11,9 +12,9 @@ interface LandingPageProps {
 }
 
 const ROLE_STYLE: Record<OrgRole, { bg: string; color: string; border: string }> = {
-  admin:    { bg: '#1c1917', color: '#fef3c7', border: '#1c1917' },
+  admin:    { bg: '#102142', color: '#e0f2fe', border: '#102142' },
   creator:  { bg: '#eff6ff', color: '#1e40af', border: '#bfdbfe' },
-  reviewer: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  reviewer: { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
 };
 
 export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onOpenAuth, onEnterOrg }) => {
@@ -73,9 +74,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onOpenAut
       {/* ── Top bar ───────────────────────────────── */}
       <div style={{ background: 'var(--white)', borderBottom: '1px solid var(--rule)', padding: '14px 48px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <ShieldCheck style={{ width: 17, height: 17, color: '#fef3c7' }} />
-          </div>
+          <Image src="/brandlint-mark.png" alt="" width={168} height={120} priority style={{ width: 'auto', height: 32, objectFit: 'contain' }} />
           <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 20, color: 'var(--ink)', letterSpacing: '-0.02em' }}>BrandLint</span>
           <span className="badge" style={{ marginLeft: 4, borderColor: 'var(--rule)', color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)' }}>v1.0</span>
         </div>

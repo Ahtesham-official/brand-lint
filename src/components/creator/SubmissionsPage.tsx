@@ -11,7 +11,7 @@ interface SubmissionsPageProps {
 const RISK_BADGE: Record<string, { bg: string; color: string; border: string }> = {
   Critical: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
   High:     { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
-  Moderate: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  Moderate: { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
   Low:      { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
 };
 

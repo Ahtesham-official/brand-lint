@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { ShieldCheck, Building2, ChevronRight, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+import { Building2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { SEEDED_USERS } from '@/data/seedData';
 import { User } from '@/types';
 
@@ -66,14 +67,7 @@ export const OrgLayout: React.FC<OrgLayoutProps> = ({
         <div style={{ maxWidth: 1160, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
-              <div style={{
-                width: 34, height: 34,
-                background: 'var(--ink)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <ShieldCheck style={{ width: 18, height: 18, color: '#fef3c7' }} />
-              </div>
+              <Image src="/brandlint-mark.png" alt="" width={168} height={120} priority style={{ width: 'auto', height: 34, objectFit: 'contain', flexShrink: 0 }} />
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                 <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
                   BrandLint

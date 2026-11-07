@@ -71,7 +71,7 @@ export const FixDiffModal: React.FC<FixDiffModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_#1c1917]"
+            className="w-8 h-8 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_#102142]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -79,12 +79,12 @@ export const FixDiffModal: React.FC<FixDiffModalProps> = ({
 
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
           {/* Issue context */}
-          <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200/70 text-xs">
-            <div className="flex items-center gap-2 font-medium text-amber-900 mb-1">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+          <div className="p-3.5 rounded-xl bg-sky-50/80 border border-sky-200/70 text-xs">
+            <div className="flex items-center gap-2 font-medium text-sky-900 mb-1">
+              <AlertCircle className="w-3.5 h-3.5 text-sky-600" />
               <span>Flagged: {issue.rule_title || issue.category}</span>
             </div>
-            <p className="text-amber-800 leading-relaxed">{issue.explanation}</p>
+            <p className="text-sky-800 leading-relaxed">{issue.explanation}</p>
           </div>
 
           {/* Inline Visual Diff */}

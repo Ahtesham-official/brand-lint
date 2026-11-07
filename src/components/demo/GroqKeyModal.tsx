@@ -55,7 +55,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -65,7 +65,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 shadow-[2px_2px_0px_#1c1917]"
+            className="w-7 h-7 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 shadow-[2px_2px_0px_#102142]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -79,7 +79,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
                 className={`px-2 py-0.5 rounded-full font-semibold text-[10px] uppercase tracking-wider ${
                   status.configured
                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                    : 'bg-sky-100 text-sky-800 border border-sky-300'
                 }`}
               >
                 {status.configured ? 'Active (Groq Llama 3.3)' : 'Deterministic Fallback'}
@@ -92,7 +92,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
 
           <div>
             <label className="block font-semibold text-slate-700 mb-1">
-              Enter Groq API Key (<code className="font-mono text-[10px] text-orange-700">gsk_...</code>)
+              Enter Groq API Key (<code className="font-mono text-[10px] text-sky-700">gsk_...</code>)
             </label>
             <div className="relative">
               <Key className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -101,7 +101,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="gsk_..."
-                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-sky-500"
               />
             </div>
             <div className="flex justify-between items-center mt-1.5 text-[11px]">
@@ -110,7 +110,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
                 href="https://console.groq.com/keys"
                 target="_blank"
                 rel="noreferrer"
-                className="text-orange-600 hover:underline flex items-center gap-0.5 font-medium"
+                className="text-sky-600 hover:underline flex items-center gap-0.5 font-medium"
               >
                 Get Groq Key <ExternalLink className="w-2.5 h-2.5" />
               </a>
@@ -135,7 +135,7 @@ export const GroqKeyModal: React.FC<GroqKeyModalProps> = ({ isOpen, onClose, onS
             <button
               type="submit"
               disabled={loading || !apiKey.trim()}
-              className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow-sm disabled:opacity-50 transition-colors"
+              className="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-semibold shadow-sm disabled:opacity-50 transition-colors"
             >
               {loading ? 'Validating...' : 'Activate Groq GenAI'}
             </button>

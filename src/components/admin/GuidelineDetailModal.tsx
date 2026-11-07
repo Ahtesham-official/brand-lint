@@ -70,14 +70,14 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
         <div style={{ padding: '22px 28px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--paper)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 40, height: 40, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <FileText style={{ width: 18, height: 18, color: '#fef3c7' }} />
+              <FileText style={{ width: 18, height: 18, color: '#e0f2fe' }} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 22, color: 'var(--ink)', margin: 0, letterSpacing: '-0.01em' }}>
                   {guideline.filename}
                 </h3>
-                <span className="badge" style={{ background: currentVersion === 'enhanced' ? '#fef3c7' : 'var(--paper-mid)', color: currentVersion === 'enhanced' ? '#92400e' : 'var(--ink-mid)', borderColor: currentVersion === 'enhanced' ? '#fcd34d' : 'var(--rule)' }}>
+                <span className="badge" style={{ background: currentVersion === 'enhanced' ? '#e0f2fe' : 'var(--paper-mid)', color: currentVersion === 'enhanced' ? '#075985' : 'var(--ink-mid)', borderColor: currentVersion === 'enhanced' ? '#7dd3fc' : 'var(--rule)' }}>
                   Active Version: {currentVersion.toUpperCase()}
                 </span>
               </div>
@@ -178,7 +178,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                     <Sparkles style={{ width: 14, height: 14 }} /> What the AI Understood from this Document
                   </span>
                   {analysis?.strictness_level && (
-                    <span className="badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}>
+                    <span className="badge" style={{ background: '#e0f2fe', color: '#075985', borderColor: '#7dd3fc' }}>
                       Strictness: {analysis.strictness_level}
                     </span>
                   )}
@@ -312,11 +312,11 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
 
                 {/* AI Enhanced */}
                 <div style={{ border: '1px solid var(--rule)', background: 'var(--white)' }}>
-                  <div style={{ padding: '12px 18px', background: '#fef3c7', borderBottom: '1px solid #fcd34d', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ padding: '12px 18px', background: '#e0f2fe', borderBottom: '1px solid #7dd3fc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#075985', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Sparkles style={{ width: 13, height: 13 }} /> AI Enhanced Version (Groq Llama 3.3)
                     </span>
-                    <span className="badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fcd34d' }}>
+                    <span className="badge" style={{ background: '#e0f2fe', color: '#075985', borderColor: '#7dd3fc' }}>
                       Optimized Structure
                     </span>
                   </div>
