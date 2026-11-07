@@ -108,7 +108,7 @@ export default function Home() {
 
   const handleExitOrg = () => {
     setActiveOrgId(null);
-    router.push('/', undefined, { shallow: true });
+    router.push('/?view=workspaces', undefined, { shallow: true });
   };
 
   // Check Groq status
@@ -148,6 +148,15 @@ export default function Home() {
 
   useEffect(() => {
     setIsClient(true);
+    if (typeof window !== 'undefined') {
+      const savedUserId = localStorage.getItem('brandlint_demo_user_id');
+      if (savedUserId) {
+        const found = SEEDED_USERS.find((u) => u.id === savedUserId);
+        if (found) {
+          setCurrentUser(found);
+        }
+      }
+    }
     store.initStore();
     refreshFromServer();
   }, [refreshFromServer]);
@@ -174,13 +183,67 @@ export default function Home() {
 
   const activeRulesCount = rules.filter((r) => r.status === 'confirmed').length;
 
+  const handleSelectDemoUser = (user: User) => {
+    setCurrentUser(user);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandlint_demo_user_id', user.id);
+    }
+  };
+
+  const handleSwitchDemoUser = async (userId: string) => {
+    const targetUser = SEEDED_USERS.find((u) => u.id === userId);
+    if (!targetUser) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandlint_demo_user_id', targetUser.id);
+    }
+
+    if (activeOrgId) {
+      try {
+        const res = await fetch(`/api/orgs/${activeOrgId}?userId=${encodeURIComponent(targetUser.id)}`, {
+          headers: { 'x-user-id': targetUser.id },
+        });
+        const data = await res.json();
+        if (res.ok && data.organization) {
+          const newRole = (data.userRole || data.organization.user_role || targetUser.role) as UserRole;
+          setCurrentUser({
+            ...targetUser,
+            role: newRole,
+          });
+          setActivePage(DEFAULT_PAGE[newRole] || 'guidelines');
+          setSelectedSubmissionId(null);
+          await refreshFromServer();
+          return;
+        }
+      } catch (err) {
+        console.error('Error switching demo user membership:', err);
+      }
+
+      // If user is not a member of current org, return to workspace selection
+      setCurrentUser(targetUser);
+      setSelectedSubmissionId(null);
+      handleExitOrg();
+    } else {
+      setCurrentUser(targetUser);
+    }
+  };
+
   const handleRoleChange = async (role: UserRole) => {
     try {
       const res = await api.demoLogin({ role });
-      if (res.user) setCurrentUser(res.user);
+      if (res.user) {
+        setCurrentUser(res.user);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('brandlint_demo_user_id', res.user.id);
+        }
+      }
     } catch {
       store.setRole(role);
-      setCurrentUser(store.getCurrentUser());
+      const user = store.getCurrentUser();
+      setCurrentUser(user);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('brandlint_demo_user_id', user.id);
+      }
     }
     setActivePage(DEFAULT_PAGE[role]);
     setSelectedSubmissionId(null);
@@ -188,6 +251,9 @@ export default function Home() {
 
   const handleLoginAsUser = (user: User) => {
     setCurrentUser(user);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandlint_demo_user_id', user.id);
+    }
     setActivePage(DEFAULT_PAGE[user.role]);
     setSelectedSubmissionId(null);
   };
@@ -520,6 +586,14 @@ export default function Home() {
             brand={brand}
             onCreateSubmission={handleCreateSubmission}
             onSelectSubmission={handleSelectSubmission}
+            onLoadDemoData={async () => {
+              try {
+                await api.loadDemoViolation();
+              } catch {
+                store.loadDemoViolationSeed();
+              }
+              await refreshFromServer();
+            }}
           />
         );
       case 'submissions':
@@ -553,17 +627,8 @@ export default function Home() {
       <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
         <LandingPage
           currentUser={currentUser}
-          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onSelectUser={handleSelectDemoUser}
           onEnterOrg={handleEnterOrg}
-        />
-
-        {/* Auth / Fast 1-Click Login Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          currentUser={currentUser}
-          onLoginAsRole={handleRoleChange}
-          onLoginAsUser={handleLoginAsUser}
         />
       </div>
     );
@@ -581,9 +646,9 @@ export default function Home() {
           setSelectedSubmissionId(null);
         }}
         onRoleChange={handleRoleChange}
+        onSelectDemoUser={handleSwitchDemoUser}
         onResetSeed={handleResetSeed}
         onOpenDemoGuide={() => setIsDemoGuideOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
         onOpenGroqModal={() => setIsGroqModalOpen(true)}
         groqActive={groqActive}
         activeRulesCount={activeRulesCount}

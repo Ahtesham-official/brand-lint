@@ -33,11 +33,16 @@ export default function OrgsListPage() {
     setError(null);
     try {
       let userId = SEEDED_USERS[0].id;
-      const stored = localStorage.getItem('brandlint_current_user');
-      if (stored) {
-        try {
-          userId = JSON.parse(stored).id || userId;
-        } catch {}
+      const demoUser = localStorage.getItem('brandlint_demo_user_id');
+      if (demoUser && SEEDED_USERS.some((u) => u.id === demoUser)) {
+        userId = demoUser;
+      } else {
+        const stored = localStorage.getItem('brandlint_current_user');
+        if (stored) {
+          try {
+            userId = JSON.parse(stored).id || userId;
+          } catch {}
+        }
       }
 
       const res = await fetch(`/api/orgs?userId=${encodeURIComponent(userId)}`, {

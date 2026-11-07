@@ -4,6 +4,14 @@ import { runCheckEngineAsync } from '@/lib/checkEngine';
 import { analyzeVideoCompliance, VideoFrameAnalysisInput } from '@/lib/videoEngine';
 import { extractFromVideoAsync } from './extract-video';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '25mb',
+    },
+  },
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     const submissions = serverDb.getSubmissions();

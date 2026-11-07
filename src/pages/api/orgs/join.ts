@@ -4,6 +4,9 @@ import { getRequestUserId } from '@/lib/orgPermissions';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = getRequestUserId(req);
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized: Unknown or invalid demo profile ID.' });
+  }
 
   if (req.method === 'GET') {
     const token = (req.query.token as string) || '';

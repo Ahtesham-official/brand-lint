@@ -97,48 +97,38 @@ function getUserMeta(userId: string) {
   return { name: `User (${userId.slice(0, 6)})`, email: `${userId}@brandlint.ai` };
 }
 
-// --- MongoDB Helpers ---
+// --- Authoritative MongoDB Initialization ---
+let mongoSeedPromise: Promise<void> | null = null;
 
-async function syncOrgToMongo(doc: Organization) {
+async function ensureMongoSeed(): Promise<void> {
   if (!isMongoConfigured()) return;
-  try {
-    const db = await getMongoDb();
-    await db.collection('organizations').replaceOne(
-      { id: doc.id },
-      { ...doc, _id: doc.id as any },
-      { upsert: true }
-    );
-  } catch (e) {
-    console.warn('Mongo org sync failed:', (e as Error).message);
-  }
-}
+  if (!mongoSeedPromise) {
+    mongoSeedPromise = (async () => {
+      try {
+        const db = await getMongoDb();
+        const existingApex = await db.collection('organizations').findOne({ id: 'org-apex-global' });
+        if (!existingApex) {
+          const initial = getInitialStore();
+          await db.collection('organizations').replaceOne(
+            { id: initial.organizations[0].id },
+            { ...initial.organizations[0], _id: initial.organizations[0].id as any },
+            { upsert: true }
+          );
 
-async function syncMemberToMongo(doc: OrganizationMember) {
-  if (!isMongoConfigured()) return;
-  try {
-    const db = await getMongoDb();
-    await db.collection('organization_members').replaceOne(
-      { id: doc.id },
-      { ...doc, _id: doc.id as any },
-      { upsert: true }
-    );
-  } catch (e) {
-    console.warn('Mongo member sync failed:', (e as Error).message);
+          for (const m of initial.members) {
+            await db.collection('organization_members').replaceOne(
+              { id: m.id },
+              { ...m, _id: m.id as any },
+              { upsert: true }
+            );
+          }
+        }
+      } catch (err) {
+        console.warn('MongoDB seed initialization warning:', (err as Error).message);
+      }
+    })();
   }
-}
-
-async function syncInviteToMongo(doc: OrganizationInvite) {
-  if (!isMongoConfigured()) return;
-  try {
-    const db = await getMongoDb();
-    await db.collection('organization_invites').replaceOne(
-      { id: doc.id },
-      { ...doc, _id: doc.id as any },
-      { upsert: true }
-    );
-  } catch (e) {
-    console.warn('Mongo invite sync failed:', (e as Error).message);
-  }
+  return mongoSeedPromise;
 }
 
 // --- Service Methods ---
@@ -148,6 +138,8 @@ export async function createOrganization(params: {
   description?: string;
   userId: string;
 }): Promise<{ organization: Organization; member: OrganizationMember }> {
+  await ensureMongoSeed();
+
   const id = `org-${crypto.randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
 
@@ -170,13 +162,29 @@ export async function createOrganization(params: {
     user_email: userMeta.email,
   };
 
-  // Sync to MongoDB if configured
-  await Promise.all([
-    syncOrgToMongo(newOrg),
-    syncMemberToMongo(newMember),
-  ]);
+  // Authoritative write to MongoDB if configured
+  if (isMongoConfigured()) {
+    try {
+      const db = await getMongoDb();
+      await Promise.all([
+        db.collection('organizations').replaceOne(
+          { id: newOrg.id },
+          { ...newOrg, _id: newOrg.id as any },
+          { upsert: true }
+        ),
+        db.collection('organization_members').replaceOne(
+          { id: newMember.id },
+          { ...newMember, _id: newMember.id as any },
+          { upsert: true }
+        ),
+      ]);
+    } catch (err) {
+      console.error('MongoDB org creation error:', err);
+      throw new Error(`Failed to create organisation in database: ${(err as Error).message}`);
+    }
+  }
 
-  // Always sync to local store for reliability
+  // Local JSON fallback mirror
   const store = readLocalOrgStore();
   store.organizations.unshift(newOrg);
   store.members.push(newMember);
@@ -186,8 +194,9 @@ export async function createOrganization(params: {
 }
 
 export async function getUserOrganizations(userId: string): Promise<Organization[]> {
-  // If MongoDB is configured, attempt fetch
+  // If MongoDB is configured, it is the sole authoritative source of truth.
   if (isMongoConfigured()) {
+    await ensureMongoSeed();
     try {
       const db = await getMongoDb();
       const memberRows = await db
@@ -195,32 +204,52 @@ export async function getUserOrganizations(userId: string): Promise<Organization
         .find({ user_id: userId })
         .toArray();
 
-      if (memberRows && memberRows.length > 0) {
-        const orgIds = memberRows.map((m) => m.org_id);
-        const orgRows = await db
-          .collection<Organization>('organizations')
-          .find({ id: { $in: orgIds } })
-          .sort({ created_at: -1 })
-          .toArray();
-
-        if (orgRows && orgRows.length > 0) {
-          return orgRows.map((org) => {
-            const mem = memberRows.find((m) => m.org_id === org.id);
-            return {
-              id: org.id,
-              name: org.name,
-              description: org.description,
-              created_by: org.created_by,
-              created_at: org.created_at,
-              role: mem?.role as OrgRole,
-            };
-          });
-        }
+      if (!memberRows || memberRows.length === 0) {
+        return [];
       }
-    } catch {}
+
+      const orgIds = memberRows.map((m) => m.org_id);
+      const orgRows = await db
+        .collection<Organization>('organizations')
+        .find({ id: { $in: orgIds } })
+        .sort({ created_at: -1 })
+        .toArray();
+
+      if (!orgRows || orgRows.length === 0) {
+        return [];
+      }
+
+      // Member counts for active organisations
+      const activeOrgIds = orgRows.map((o) => o.id);
+      const memberCounts = await db
+        .collection('organization_members')
+        .aggregate<{ _id: string; count: number }>([
+          { $match: { org_id: { $in: activeOrgIds } } },
+          { $group: { _id: '$org_id', count: { $sum: 1 } } },
+        ])
+        .toArray();
+
+      const countMap = new Map(memberCounts.map((c) => [c._id, c.count]));
+
+      return orgRows.map((org) => {
+        const mem = memberRows.find((m) => m.org_id === org.id);
+        return {
+          id: org.id,
+          name: org.name,
+          description: org.description,
+          created_by: org.created_by,
+          created_at: org.created_at,
+          role: mem?.role as OrgRole,
+          member_count: countMap.get(org.id) || 1,
+        };
+      });
+    } catch (err) {
+      console.error('Authoritative MongoDB fetch error in getUserOrganizations:', err);
+      throw new Error('Database error fetching workspaces.');
+    }
   }
 
-  // Fallback to local store
+  // Development Fallback: Local JSON (only if MongoDB is NOT configured)
   const store = readLocalOrgStore();
   const userMemberships = store.members.filter((m) => m.user_id === userId);
   const userOrgIds = new Set(userMemberships.map((m) => m.org_id));
@@ -242,38 +271,42 @@ export async function getOrganizationById(
   orgId: string,
   userId?: string
 ): Promise<(Organization & { member_count: number; user_role?: OrgRole }) | null> {
-  // Try MongoDB first
   if (isMongoConfigured()) {
+    await ensureMongoSeed();
     try {
       const db = await getMongoDb();
       const org = await db.collection<Organization>('organizations').findOne({ id: orgId });
 
-      if (org) {
-        const memberCount = await db
-          .collection('organization_members')
-          .countDocuments({ org_id: orgId });
+      if (!org) return null;
 
-        let userRole: OrgRole | undefined;
-        if (userId) {
-          const mem = await db
-            .collection<OrganizationMember>('organization_members')
-            .findOne({ org_id: orgId, user_id: userId });
-          if (mem) userRole = mem.role as OrgRole;
-        }
+      const memberCount = await db
+        .collection('organization_members')
+        .countDocuments({ org_id: orgId });
 
-        return {
-          id: org.id,
-          name: org.name,
-          description: org.description,
-          created_by: org.created_by,
-          created_at: org.created_at,
-          member_count: memberCount || 1,
-          user_role: userRole,
-        };
+      let userRole: OrgRole | undefined;
+      if (userId) {
+        const mem = await db
+          .collection<OrganizationMember>('organization_members')
+          .findOne({ org_id: orgId, user_id: userId });
+        if (mem) userRole = mem.role as OrgRole;
       }
-    } catch {}
+
+      return {
+        id: org.id,
+        name: org.name,
+        description: org.description,
+        created_by: org.created_by,
+        created_at: org.created_at,
+        member_count: memberCount || 1,
+        user_role: userRole,
+      };
+    } catch (err) {
+      console.error('Authoritative MongoDB fetch error in getOrganizationById:', err);
+      return null;
+    }
   }
 
+  // Local JSON fallback
   const store = readLocalOrgStore();
   const org = store.organizations.find((o) => o.id === orgId);
   if (!org) return null;
@@ -290,6 +323,7 @@ export async function getOrganizationById(
 
 export async function getOrganizationMembers(orgId: string): Promise<OrganizationMember[]> {
   if (isMongoConfigured()) {
+    await ensureMongoSeed();
     try {
       const db = await getMongoDb();
       const members = await db
@@ -298,21 +332,22 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
         .sort({ joined_at: 1 })
         .toArray();
 
-      if (members && members.length > 0) {
-        return members.map((m) => {
-          const meta = getUserMeta(m.user_id);
-          return {
-            id: m.id,
-            org_id: m.org_id,
-            user_id: m.user_id,
-            role: m.role,
-            joined_at: m.joined_at,
-            user_name: m.user_name || meta.name,
-            user_email: m.user_email || meta.email,
-          };
-        });
-      }
-    } catch {}
+      return members.map((m) => {
+        const meta = getUserMeta(m.user_id);
+        return {
+          id: m.id,
+          org_id: m.org_id,
+          user_id: m.user_id,
+          role: m.role,
+          joined_at: m.joined_at,
+          user_name: m.user_name || meta.name,
+          user_email: m.user_email || meta.email,
+        };
+      });
+    } catch (err) {
+      console.error('Authoritative MongoDB fetch error in getOrganizationMembers:', err);
+      return [];
+    }
   }
 
   const store = readLocalOrgStore();
@@ -330,16 +365,18 @@ export async function getOrganizationMembers(orgId: string): Promise<Organizatio
 
 export async function getMemberRole(orgId: string, userId: string): Promise<OrgRole | null> {
   if (isMongoConfigured()) {
+    await ensureMongoSeed();
     try {
       const db = await getMongoDb();
       const member = await db
         .collection<OrganizationMember>('organization_members')
         .findOne({ org_id: orgId, user_id: userId });
 
-      if (member) {
-        return member.role as OrgRole;
-      }
-    } catch {}
+      return member ? (member.role as OrgRole) : null;
+    } catch (err) {
+      console.error('Authoritative MongoDB fetch error in getMemberRole:', err);
+      return null;
+    }
   }
 
   const store = readLocalOrgStore();
@@ -355,10 +392,8 @@ export async function createInvite(params: {
   userId: string;
 }): Promise<OrganizationInvite> {
   const token = crypto.randomBytes(16).toString('hex');
-  const hours = params.expiresInHours && params.expiresInHours > 0 ? params.expiresInHours : 48;
-  const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-  const maxUses = params.maxUses && params.maxUses > 0 ? params.maxUses : 10;
-  const now = new Date().toISOString();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + (params.expiresInHours || 48) * 60 * 60 * 1000).toISOString();
 
   const invite: OrganizationInvite = {
     id: `inv-${crypto.randomUUID().slice(0, 8)}`,
@@ -366,14 +401,25 @@ export async function createInvite(params: {
     token,
     role: params.role,
     expires_at: expiresAt,
-    max_uses: maxUses,
+    max_uses: params.maxUses || 5,
     uses_count: 0,
     created_by: params.userId,
     revoked: false,
-    created_at: now,
+    created_at: now.toISOString(),
   };
 
-  await syncInviteToMongo(invite);
+  if (isMongoConfigured()) {
+    try {
+      const db = await getMongoDb();
+      await db.collection('organization_invites').replaceOne(
+        { id: invite.id },
+        { ...invite, _id: invite.id as any },
+        { upsert: true }
+      );
+    } catch (err) {
+      console.error('MongoDB invite creation error:', err);
+    }
+  }
 
   const store = readLocalOrgStore();
   store.invites.push(invite);
@@ -413,7 +459,11 @@ export async function getInviteByToken(
           org_name: org?.name || 'Organization',
         };
       }
-    } catch {}
+      return null;
+    } catch (err) {
+      console.error('Authoritative MongoDB fetch error in getInviteByToken:', err);
+      return null;
+    }
   }
 
   const store = readLocalOrgStore();
@@ -449,7 +499,6 @@ export async function joinOrganizationByToken(params: {
     throw new Error('This invitation has reached its maximum allowed uses.');
   }
 
-  // Check if user is already a member
   const currentRole = await getMemberRole(invite.org_id, params.userId);
   if (currentRole) {
     return {
@@ -483,7 +532,9 @@ export async function joinOrganizationByToken(params: {
       await db
         .collection('organization_invites')
         .updateOne({ id: invite.id }, { $inc: { uses_count: 1 } });
-    } catch {}
+    } catch (err) {
+      console.error('MongoDB joinOrganizationByToken error:', err);
+    }
   }
 
   const store = readLocalOrgStore();
@@ -506,6 +557,36 @@ export async function updateMemberRole(params: {
   targetUserId: string;
   newRole: OrgRole;
 }): Promise<OrganizationMember> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const member = await db
+      .collection<OrganizationMember>('organization_members')
+      .findOne({ org_id: params.orgId, user_id: params.targetUserId });
+
+    if (!member) {
+      throw new Error('Member not found in this organisation.');
+    }
+
+    if (member.role === 'admin' && params.newRole !== 'admin') {
+      const adminCount = await db
+        .collection('organization_members')
+        .countDocuments({ org_id: params.orgId, role: 'admin' });
+      if (adminCount <= 1) {
+        throw new Error('Cannot downgrade the only admin. An organisation must keep at least 1 admin.');
+      }
+    }
+
+    await db
+      .collection('organization_members')
+      .updateOne(
+        { org_id: params.orgId, user_id: params.targetUserId },
+        { $set: { role: params.newRole } }
+      );
+
+    member.role = params.newRole;
+    return member;
+  }
+
   const store = readLocalOrgStore();
   const member = store.members.find(
     (m) => m.org_id === params.orgId && m.user_id === params.targetUserId
@@ -515,7 +596,6 @@ export async function updateMemberRole(params: {
     throw new Error('Member not found in this organisation.');
   }
 
-  // An org must always keep at least 1 admin
   if (member.role === 'admin' && params.newRole !== 'admin') {
     const adminCount = store.members.filter(
       (m) => m.org_id === params.orgId && m.role === 'admin'
@@ -526,19 +606,6 @@ export async function updateMemberRole(params: {
   }
 
   member.role = params.newRole;
-
-  if (isMongoConfigured()) {
-    try {
-      const db = await getMongoDb();
-      await db
-        .collection('organization_members')
-        .updateOne(
-          { org_id: params.orgId, user_id: params.targetUserId },
-          { $set: { role: params.newRole } }
-        );
-    } catch {}
-  }
-
   writeLocalOrgStore(store);
   return member;
 }
@@ -547,6 +614,32 @@ export async function removeMember(params: {
   orgId: string;
   targetUserId: string;
 }): Promise<boolean> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const member = await db
+      .collection<OrganizationMember>('organization_members')
+      .findOne({ org_id: params.orgId, user_id: params.targetUserId });
+
+    if (!member) {
+      throw new Error('Member not found in this organisation.');
+    }
+
+    if (member.role === 'admin') {
+      const adminCount = await db
+        .collection('organization_members')
+        .countDocuments({ org_id: params.orgId, role: 'admin' });
+      if (adminCount <= 1) {
+        throw new Error('Cannot remove the only admin. An organisation must keep at least 1 admin.');
+      }
+    }
+
+    await db
+      .collection('organization_members')
+      .deleteOne({ org_id: params.orgId, user_id: params.targetUserId });
+
+    return true;
+  }
+
   const store = readLocalOrgStore();
   const member = store.members.find(
     (m) => m.org_id === params.orgId && m.user_id === params.targetUserId
@@ -556,7 +649,6 @@ export async function removeMember(params: {
     throw new Error('Member not found in this organisation.');
   }
 
-  // An org must always keep at least 1 admin
   if (member.role === 'admin') {
     const adminCount = store.members.filter(
       (m) => m.org_id === params.orgId && m.role === 'admin'
@@ -569,16 +661,6 @@ export async function removeMember(params: {
   store.members = store.members.filter(
     (m) => !(m.org_id === params.orgId && m.user_id === params.targetUserId)
   );
-
-  if (isMongoConfigured()) {
-    try {
-      const db = await getMongoDb();
-      await db
-        .collection('organization_members')
-        .deleteOne({ org_id: params.orgId, user_id: params.targetUserId });
-    } catch {}
-  }
-
   writeLocalOrgStore(store);
   return true;
 }
@@ -588,6 +670,58 @@ export async function deleteOrganization(params: {
   userId: string;
   confirmName?: string;
 }): Promise<boolean> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const org = await db.collection<Organization>('organizations').findOne({ id: params.orgId });
+
+    if (!org) {
+      throw new Error('Organisation not found or already deleted.');
+    }
+
+    // 1. Verify requesting user is admin of that specific organisation
+    const member = await db
+      .collection<OrganizationMember>('organization_members')
+      .findOne({ org_id: params.orgId, user_id: params.userId });
+
+    if (!member || member.role !== 'admin') {
+      throw new Error('Unauthorized: Only an organisation Admin can delete this organisation.');
+    }
+
+    // 2. Verify confirmation name if provided
+    if (params.confirmName && params.confirmName !== org.name) {
+      throw new Error(`Confirmation name does not match. Expected "${org.name}".`);
+    }
+
+    // 3. Cascade deletion: delete organisation, members, invites, and related workspace data
+    try {
+      await Promise.all([
+        db.collection('organizations').deleteOne({ id: params.orgId }),
+        db.collection('organization_members').deleteMany({ org_id: params.orgId }),
+        db.collection('organization_invites').deleteMany({ org_id: params.orgId }),
+        db.collection('guidelines').deleteMany({ org_id: params.orgId }),
+        db.collection('rules').deleteMany({ org_id: params.orgId }),
+        db.collection('facts').deleteMany({ org_id: params.orgId }),
+        db.collection('submissions').deleteMany({ org_id: params.orgId }),
+        db.collection('issues').deleteMany({ org_id: params.orgId }),
+        db.collection('reviews').deleteMany({ org_id: params.orgId }),
+        db.collection('audit_logs').deleteMany({ org_id: params.orgId }),
+      ]);
+    } catch (err) {
+      console.error('Error during MongoDB cascade org deletion:', err);
+      throw new Error(`Failed to delete organisation records from database: ${(err as Error).message}`);
+    }
+
+    // Also mirror cleanup in local store if present
+    const store = readLocalOrgStore();
+    store.organizations = store.organizations.filter((o) => o.id !== params.orgId);
+    store.members = store.members.filter((m) => m.org_id !== params.orgId);
+    store.invites = store.invites.filter((i) => i.org_id !== params.orgId);
+    writeLocalOrgStore(store);
+
+    return true;
+  }
+
+  // Local JSON store fallback
   const store = readLocalOrgStore();
   const org = store.organizations.find((o) => o.id === params.orgId);
 
@@ -595,7 +729,6 @@ export async function deleteOrganization(params: {
     throw new Error('Organisation not found or already deleted.');
   }
 
-  // 1. Verify user is still an Admin of that organisation
   const userMember = store.members.find(
     (m) => m.org_id === params.orgId && m.user_id === params.userId
   );
@@ -603,30 +736,14 @@ export async function deleteOrganization(params: {
     throw new Error('Unauthorized: Only an organisation Admin can delete this organisation.');
   }
 
-  // 2. Verify confirmation name if provided
   if (params.confirmName && params.confirmName !== org.name) {
     throw new Error(`Confirmation name does not match. Expected "${org.name}".`);
   }
 
-  // 3. Database cleanup: MongoDB cascade
-  if (isMongoConfigured()) {
-    try {
-      const db = await getMongoDb();
-      await Promise.all([
-        db.collection('organization_invites').deleteMany({ org_id: params.orgId }),
-        db.collection('organization_members').deleteMany({ org_id: params.orgId }),
-        db.collection('organizations').deleteOne({ id: params.orgId }),
-      ]);
-    } catch (err) {
-      console.error('Error during Mongo org deletion:', err);
-    }
-  }
-
-  // 4. Safe cleanup from local store (cascade)
   store.organizations = store.organizations.filter((o) => o.id !== params.orgId);
   store.members = store.members.filter((m) => m.org_id !== params.orgId);
   store.invites = store.invites.filter((i) => i.org_id !== params.orgId);
-
   writeLocalOrgStore(store);
+
   return true;
 }

@@ -25,6 +25,7 @@ interface SubmitPageProps {
     media_type?: 'image' | 'video';
   }) => Promise<Submission> | Submission;
   onSelectSubmission: (id: string) => void;
+  onLoadDemoData?: () => Promise<void> | void;
 }
 
 const PRESET_POSTERS = [
@@ -65,25 +66,21 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
   brand,
   onCreateSubmission,
   onSelectSubmission,
+  onLoadDemoData,
 }) => {
   const [mediaType, setMediaType] = useState<'image' | 'video'>('video');
-  const [title, setTitle] = useState(PRESET_VIDEOS[0].name);
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [imageUrl, setImageUrl] = useState(PRESET_VIDEOS[0].poster);
-  const [videoUrl, setVideoUrl] = useState(PRESET_VIDEOS[0].url);
-  const [ocrText, setOcrText] = useState(PRESET_VIDEOS[0].ocr);
-  const [showOcr, setShowOcr] = useState(true);
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [ocrText, setOcrText] = useState('');
+  const [showOcr, setShowOcr] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadedImageName, setUploadedImageName] = useState<string | null>(null);
 
   const maxCaption = 1000;
 
   const [extractingVideo, setExtractingVideo] = useState(false);
-
-  // On first load, auto-extract OCR+Audio for the default preset video
-  useEffect(() => {
-    performVideoExtraction(PRESET_VIDEOS[0].url, PRESET_VIDEOS[0].name, PRESET_VIDEOS[0].ocr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const performVideoExtraction = async (url: string, videoTitle: string, hint?: string) => {
     setExtractingVideo(true);
@@ -100,7 +97,9 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
     }
   };
 
-  const handleLoadDemo = () => {
+  const handleLoadDemo = async () => {
+    setUploadedImageName(null);
+    setShowOcr(true);
     if (mediaType === 'video') {
       setTitle(PRESET_VIDEOS[0].name);
       setVideoUrl(PRESET_VIDEOS[0].url);
@@ -112,10 +111,18 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
       setImageUrl(DEMO_SUBMISSION_INITIAL.image_url);
       setOcrText(DEMO_SUBMISSION_INITIAL.ocr_text);
     }
+    if (onLoadDemoData) {
+      try {
+        await onLoadDemoData();
+      } catch (err) {
+        console.warn('Error loading demo violation seed:', err);
+      }
+    }
   };
 
   const handleSelectPosterPreset = (preset: (typeof PRESET_POSTERS)[0]) => {
     setImageUrl(preset.url);
+    setUploadedImageName(null);
     if (!ocrText) setOcrText(preset.ocr);
   };
 
@@ -135,6 +142,25 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
       setTitle(cleanName);
       setOcrText(''); // Clear existing demo preset text immediately so user sees real-time progress
       performVideoExtraction(localUrl, cleanName, undefined);
+    }
+  };
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setImageUrl(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      setUploadedImageName(file.name);
+      if (!title || PRESET_POSTERS.some((p) => p.name === title) || PRESET_VIDEOS.some((p) => p.name === title)) {
+        setTitle(cleanName);
+      }
     }
   };
 
@@ -336,7 +362,7 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
             {/* Presets */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
               {PRESET_VIDEOS.map((preset) => {
-                const isSelected = videoUrl === preset.url;
+                const isSelected = !!videoUrl && videoUrl === preset.url;
                 return (
                   <div
                     key={preset.name}
@@ -381,41 +407,84 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
           </div>
         ) : (
           <div>
-            <label className="kicker" style={{ marginBottom: 8 }}>Poster Artwork Image</label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
-              {PRESET_POSTERS.map((preset) => {
-                const isSelected = imageUrl === preset.url;
-                return (
-                  <div
-                    key={preset.name}
-                    onClick={() => handleSelectPosterPreset(preset)}
-                    style={{
-                      padding: '12px 14px',
-                      background: isSelected ? 'var(--paper)' : 'var(--white)',
-                      border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--rule)'}`,
-                      borderRadius: 'var(--radius-btn)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <img src={preset.url} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 'var(--radius-btn)' }} />
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>{preset.name}</p>
-                      <span className="kicker" style={{ marginTop: 2, color: 'var(--ink-faint)' }}>Preset Artwork</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  padding: '9px 18px',
+                  background: 'var(--white)',
+                  border: '1px solid var(--accent)',
+                  borderRadius: 'var(--radius-btn)',
+                  boxShadow: '2px 2px 0px var(--btn-shadow)',
+                }}
+              >
+                <Upload style={{ width: 14, height: 14 }} />
+                <span>Upload Custom Image</span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleImageFileUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
             </div>
 
+            {uploadedImageName && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 14px',
+                  background: 'var(--paper-mid)',
+                  border: '1.5px solid var(--accent)',
+                  borderRadius: 'var(--radius-btn)',
+                  marginBottom: 12,
+                }}
+              >
+                <img
+                  src={imageUrl}
+                  alt="Uploaded preview"
+                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 'var(--radius-btn)' }}
+                />
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
+                    {uploadedImageName}
+                  </p>
+                  <span className="kicker" style={{ marginTop: 2, color: 'var(--accent)' }}>
+                    Custom Uploaded Image (Selected)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadedImageName(null);
+                    setImageUrl('');
+                  }}
+                  className="btn-plain"
+                  style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-faint)', cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+
             <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
+              type="text"
+              value={uploadedImageName ? `[Uploaded file: ${uploadedImageName}]` : imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                setUploadedImageName(null);
+              }}
               placeholder="Or enter image URL (https://...)"
               style={iStyle()}
+              readOnly={!!uploadedImageName}
             />
           </div>
         )}
@@ -439,7 +508,12 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
               }}
             >
               <ScanText style={{ width: 14, height: 14 }} />
-              <span>{showOcr ? 'Hide' : 'Show'} Extracted Video Frame Text &amp; Audio Transcription (OCR / Whisper)</span>
+              <span>
+                {showOcr ? 'Hide' : 'Show'}{' '}
+                {mediaType === 'video'
+                  ? 'Extracted Video Frame Text & Audio Transcription (OCR / Whisper)'
+                  : 'On-Screen Poster Text (OCR / Visual Text)'}
+              </span>
             </button>
             {extractingVideo && (
               <span style={{ fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>

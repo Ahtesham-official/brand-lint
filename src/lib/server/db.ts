@@ -41,6 +41,21 @@ function getDefaultData(): DatabaseSchema {
   return {
     brand: SEEDED_BRAND,
     users: SEEDED_USERS,
+    guidelines: [],
+    rules: [],
+    facts: [],
+    submissions: [],
+    submission_texts: [],
+    issues: [],
+    reviews: [],
+    audit_logs: [],
+  };
+}
+
+export function getDemoSeedData(): DatabaseSchema {
+  return {
+    brand: SEEDED_BRAND,
+    users: SEEDED_USERS,
     guidelines: SEEDED_GUIDELINES.map((g) => ({ ...g, enabled: true })),
     rules: SEEDED_RULES,
     facts: SEEDED_FACTS,
@@ -114,7 +129,7 @@ class ServerDatabase {
       const collections = await db.listCollections().toArray();
       const colNames = collections.map((c: any) => c.name);
 
-      if (colNames.includes('guidelines') && colNames.includes('rules')) {
+      if (colNames.includes('guidelines') || colNames.includes('rules') || colNames.includes('brand')) {
         // Load collections from MongoDB
         const [brand, users, guidelines, rules, facts, submissions, issues, reviews, audit_logs] =
           await Promise.all([
@@ -129,38 +144,26 @@ class ServerDatabase {
             db.collection<AuditLog>('audit_logs').find({}).toArray(),
           ]);
 
-        if (guidelines && guidelines.length > 0) {
-          const loaded: DatabaseSchema = {
-            brand: brand || SEEDED_BRAND,
-            users: users.length > 0 ? users : SEEDED_USERS,
-            guidelines: guidelines.map((g: any) => ({ ...g, enabled: g.enabled !== false })),
-            rules: rules.length > 0 ? rules : SEEDED_RULES,
-            facts: facts.length > 0 ? facts : SEEDED_FACTS,
-            submissions: submissions || [],
-            submission_texts: [],
-            issues: issues || [],
-            reviews: reviews || [],
-            audit_logs: audit_logs || [],
-          };
-          this.writeDb(loaded);
-          this.mongoInitialized = true;
-          return;
-        }
+        const loaded: DatabaseSchema = {
+          brand: brand || SEEDED_BRAND,
+          users: users && users.length > 0 ? users : SEEDED_USERS,
+          guidelines: guidelines ? guidelines.map((g: any) => ({ ...g, enabled: g.enabled !== false })) : [],
+          rules: rules || [],
+          facts: facts || [],
+          submissions: submissions || [],
+          submission_texts: [],
+          issues: issues || [],
+          reviews: reviews || [],
+          audit_logs: audit_logs || [],
+        };
+        this.writeDb(loaded);
+        this.mongoInitialized = true;
+        return;
       }
 
-      // If empty in MongoDB, seed initial data to MongoDB
-      const defaultData = this.readDb();
-      await Promise.all([
-        this.syncToMongo('brand', defaultData.brand),
-        this.syncToMongo('users', defaultData.users),
-        this.syncToMongo('guidelines', defaultData.guidelines),
-        this.syncToMongo('rules', defaultData.rules),
-        this.syncToMongo('facts', defaultData.facts),
-        this.syncToMongo('audit_logs', defaultData.audit_logs),
-      ]);
       this.mongoInitialized = true;
     } catch (e) {
-      console.warn('MongoDB init/seed fallback to local storage:', (e as Error).message);
+      console.warn('MongoDB init fallback to local storage:', (e as Error).message);
     }
   }
 
@@ -192,20 +195,34 @@ class ServerDatabase {
     }
   }
 
-  // --- Reset to seed ---
+  // --- Reset to clean/empty state ---
   public resetToSeed(): DatabaseSchema {
+    return this.clearAllData();
+  }
+
+  public clearAllData(): DatabaseSchema {
     const data = getDefaultData();
     this.writeDb(data);
-    this.syncToMongo('brand', data.brand);
-    this.syncToMongo('users', data.users);
-    this.syncToMongo('guidelines', data.guidelines);
-    this.syncToMongo('rules', data.rules);
-    this.syncToMongo('facts', data.facts);
-    this.syncToMongo('submissions', data.submissions);
-    this.syncToMongo('issues', data.issues);
-    this.syncToMongo('reviews', data.reviews);
-    this.syncToMongo('audit_logs', data.audit_logs);
+    this.syncToMongo('guidelines', []);
+    this.syncToMongo('rules', []);
+    this.syncToMongo('facts', []);
+    this.syncToMongo('submissions', []);
+    this.syncToMongo('issues', []);
+    this.syncToMongo('reviews', []);
+    this.syncToMongo('audit_logs', []);
     return data;
+  }
+
+  // --- Load Demo Violation Seed ---
+  public loadDemoSeed(): DatabaseSchema {
+    const demoData = getDemoSeedData();
+    this.writeDb(demoData);
+    this.syncToMongo('brand', demoData.brand);
+    this.syncToMongo('guidelines', demoData.guidelines);
+    this.syncToMongo('rules', demoData.rules);
+    this.syncToMongo('facts', demoData.facts);
+    this.syncToMongo('audit_logs', demoData.audit_logs);
+    return demoData;
   }
 
   // --- Brand ---

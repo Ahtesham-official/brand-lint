@@ -11,26 +11,32 @@ export interface PermissionCheckResult {
   statusCode?: number;
 }
 
+const VALID_DEMO_USER_IDS = new Set(SEEDED_USERS.map((u) => u.id));
+
 /**
  * Extracts requesting user ID from headers, query, or body.
- * Falls back to demo/local user 0 if not explicitly supplied.
+ * Strictly validates against allowed demo user IDs.
+ * Rejects unknown demo profile IDs.
  */
-export function getRequestUserId(req: NextApiRequest): string {
+export function getRequestUserId(req: NextApiRequest): string | null {
   const headerUser = req.headers['x-user-id'];
   if (typeof headerUser === 'string' && headerUser.trim()) {
-    return headerUser.trim();
+    const id = headerUser.trim();
+    return VALID_DEMO_USER_IDS.has(id) ? id : null;
   }
 
   const queryUser = req.query.userId;
   if (typeof queryUser === 'string' && queryUser.trim()) {
-    return queryUser.trim();
+    const id = queryUser.trim();
+    return VALID_DEMO_USER_IDS.has(id) ? id : null;
   }
 
   if (req.body && typeof req.body === 'object' && req.body.userId) {
-    return String(req.body.userId).trim();
+    const id = String(req.body.userId).trim();
+    return VALID_DEMO_USER_IDS.has(id) ? id : null;
   }
 
-  // Fallback to primary demo admin user in local/demo environment
+  // Fallback to primary demo admin user in local/demo environment if not specified
   return SEEDED_USERS[0].id;
 }
 
@@ -45,6 +51,12 @@ export async function requireOrgRole(
   allowedRoles: OrgRole[]
 ): Promise<PermissionCheckResult> {
   const userId = getRequestUserId(req);
+
+  if (!userId) {
+    const error = 'Unauthorized: Unknown or invalid demo profile ID.';
+    res.status(401).json({ error });
+    return { authorized: false, error, statusCode: 401 };
+  }
 
   if (!orgId) {
     const error = 'Missing organisation ID.';

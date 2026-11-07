@@ -24,9 +24,9 @@ class BrandLintStore {
   private brand: Brand = SEEDED_BRAND;
   private users: User[] = SEEDED_USERS;
   private currentUser: User = SEEDED_USERS[0]; // Admin by default
-  private guidelines: Guideline[] = SEEDED_GUIDELINES;
-  private rules: Rule[] = SEEDED_RULES;
-  private facts: Fact[] = SEEDED_FACTS;
+  private guidelines: Guideline[] = [];
+  private rules: Rule[] = [];
+  private facts: Fact[] = [];
   private submissions: Submission[] = [];
   private issues: Issue[] = [];
   private reviews: Review[] = [];
@@ -122,31 +122,27 @@ class BrandLintStore {
     }
   }
 
-  public resetToDemoSeed() {
-    this.brand = { ...SEEDED_BRAND };
-    this.users = [...SEEDED_USERS];
-    this.currentUser = this.users[0];
-    this.guidelines = [...SEEDED_GUIDELINES];
-    this.rules = [...SEEDED_RULES];
-    this.facts = [...SEEDED_FACTS];
+  public resetToEmpty() {
+    this.guidelines = [];
+    this.rules = [];
+    this.facts = [];
     this.submissions = [];
     this.issues = [];
     this.reviews = [];
-    this.auditLogs = [
-      {
-        id: 'log-seed-01',
-        actor_id: this.users[0].id,
-        actor_name: this.users[0].name,
-        actor_role: this.users[0].role,
-        action: 'guideline_confirmed',
-        entity: 'guideline',
-        entity_id: 'gl-01',
-        meta: { filename: 'Apex_Brand_Guidelines_v2.4.pdf', confirmed_rules: 7 },
-        created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
-      },
-    ];
-    this.demoMode = true;
+    this.auditLogs = [];
     this.notify();
+  }
+
+  public loadDemoViolationSeed() {
+    this.brand = { ...SEEDED_BRAND };
+    this.guidelines = [...SEEDED_GUIDELINES];
+    this.rules = [...SEEDED_RULES];
+    this.facts = [...SEEDED_FACTS];
+    this.notify();
+  }
+
+  public resetToDemoSeed() {
+    this.loadDemoViolationSeed();
   }
 
   // --- Auth & Users ---

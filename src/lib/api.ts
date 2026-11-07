@@ -249,9 +249,16 @@ class ApiClient {
     return this.request<AuditLog[]>('/api/audit-logs');
   }
 
-  // --- Reset Seed ---
+  // --- Reset / Demo Seed ---
   public async resetSeed(): Promise<void> {
     await this.request('/api/reset', { method: 'POST' });
+  }
+
+  public async loadDemoViolation(): Promise<void> {
+    await this.request('/api/reset', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'load_demo' }),
+    });
   }
 }
 

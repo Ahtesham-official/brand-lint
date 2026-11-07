@@ -27,12 +27,18 @@ export const OrgLayout: React.FC<OrgLayoutProps> = ({
   useEffect(() => {
     setIsClient(true);
     try {
-      const stored = localStorage.getItem('brandlint_current_user');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          const match = SEEDED_USERS.find((u) => u.id === parsed.id) || parsed;
-          setCurrentUser(match);
+      const demoUser = localStorage.getItem('brandlint_demo_user_id');
+      if (demoUser) {
+        const match = SEEDED_USERS.find((u) => u.id === demoUser);
+        if (match) setCurrentUser(match);
+      } else {
+        const stored = localStorage.getItem('brandlint_current_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.id) {
+            const match = SEEDED_USERS.find((u) => u.id === parsed.id) || parsed;
+            setCurrentUser(match);
+          }
         }
       }
     } catch {}
@@ -43,6 +49,7 @@ export const OrgLayout: React.FC<OrgLayoutProps> = ({
     if (user) {
       setCurrentUser(user);
       try {
+        localStorage.setItem('brandlint_demo_user_id', user.id);
         localStorage.setItem('brandlint_current_user', JSON.stringify(user));
       } catch {}
       window.location.reload();

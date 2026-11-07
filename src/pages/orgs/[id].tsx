@@ -64,10 +64,15 @@ export default function OrgDetailPage() {
 
     let activeUser = SEEDED_USERS[0].id;
     try {
-      const stored = localStorage.getItem('brandlint_current_user');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.id) activeUser = parsed.id;
+      const demoUser = localStorage.getItem('brandlint_demo_user_id');
+      if (demoUser && SEEDED_USERS.some((u) => u.id === demoUser)) {
+        activeUser = demoUser;
+      } else {
+        const stored = localStorage.getItem('brandlint_current_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.id && SEEDED_USERS.some((u) => u.id === parsed.id)) activeUser = parsed.id;
+        }
       }
     } catch {}
     setCurrentUserId(activeUser);
@@ -233,7 +238,8 @@ export default function OrgDetailPage() {
         localStorage.removeItem('brandlint_active_org_id');
       } catch {}
 
-      router.push('/');
+      // Keep active demo persona selected, redirect directly to workspace selection with success message
+      router.push(`/?view=workspaces&deleted=${encodeURIComponent(org.name)}`);
     } catch (err: any) {
       setDeleteError(err.message || 'Error deleting organisation.');
       setDeleting(false);
