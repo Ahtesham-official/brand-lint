@@ -1,10 +1,11 @@
 import React from 'react';
 import { FileText, ArrowRight } from 'lucide-react';
-import type { Submission } from '@/types';
+import type { Submission, User } from '@/types';
 
 interface SubmissionsPageProps {
   submissions: Submission[];
   onSelectSubmission: (id: string) => void;
+  currentUser?: User;
 }
 
 const RISK_BADGE: Record<string, { bg: string; color: string; border: string }> = {
@@ -31,7 +32,13 @@ const formatTime = (iso: string): string => {
 const SubmissionsPage: React.FC<SubmissionsPageProps> = ({
   submissions,
   onSelectSubmission,
+  currentUser,
 }) => {
+  // If the user is a creator, filter to show only their own submissions
+  const displayedSubmissions = currentUser && currentUser.role === 'creator'
+    ? submissions.filter((s) => s.creator_id === currentUser.id || s.creator_name === currentUser.name)
+    : submissions;
+
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
       {/* ── Page Header ── */}
@@ -39,23 +46,23 @@ const SubmissionsPage: React.FC<SubmissionsPageProps> = ({
         <div>
           <div className="kicker-accent" style={{ marginBottom: 8 }}>Compliance Archive</div>
           <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
-            Submissions
+            {currentUser?.role === 'creator' ? 'My Submissions' : 'Submissions'}
           </h1>
           <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
-            {submissions.length} content checks submitted for brand governance review.
+            {displayedSubmissions.length} content checks {currentUser?.role === 'creator' ? 'submitted by you.' : 'submitted for brand governance review.'}
           </p>
         </div>
       </div>
 
       {/* ── List ── */}
-      {submissions.length === 0 ? (
+      {displayedSubmissions.length === 0 ? (
         <div style={{ padding: '64px 24px', textAlign: 'center', background: 'var(--white)', border: '1px solid var(--rule)' }}>
           <FileText style={{ width: 32, height: 32, color: 'var(--rule)', margin: '0 auto 12px' }} />
           <p style={{ fontSize: 14, color: 'var(--ink-faint)' }}>No submissions found.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {submissions.map((sub) => {
+          {displayedSubmissions.map((sub) => {
             const risk = RISK_BADGE[sub.risk_level || 'Low'] || RISK_BADGE.Low;
             return (
               <div

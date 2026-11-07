@@ -493,6 +493,7 @@ export default function Home() {
         return (
           <SubmissionsPage
             submissions={submissions}
+            currentUser={currentUser}
             onSelectSubmission={handleSelectSubmission}
           />
         );

@@ -350,10 +350,22 @@ export default function OrgsListPage() {
               </div>
               <button
                 onClick={() => setShowJoinModal(false)}
-                className="btn-plain"
-                style={{ cursor: 'pointer', color: 'var(--ink-faint)' }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--white)',
+                  border: '1px solid var(--rule-dark)',
+                  borderRadius: 'var(--radius-btn)',
+                  cursor: 'pointer',
+                  color: 'var(--ink)',
+                  boxShadow: '2px 2px 0px var(--btn-shadow)',
+                  padding: 0,
+                }}
               >
-                <X style={{ width: 18, height: 18 }} />
+                <X style={{ width: 16, height: 16 }} />
               </button>
             </div>
 

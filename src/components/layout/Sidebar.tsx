@@ -150,6 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               background: 'var(--white)',
               border: '1px solid var(--rule)',
               borderBottom: '2px solid var(--rule-dark)',
+              borderRadius: 'var(--radius-btn)',
               boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
               transition: 'transform 0.08s ease, box-shadow 0.08s ease',
             }}

@@ -229,7 +229,27 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
                 <div className="kicker-accent" style={{ marginBottom: 4 }}>Ingestion — FR-3.1</div>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Upload Guideline</h3>
               </div>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: 30,
+                  height: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--white)',
+                  border: '1px solid var(--rule)',
+                  borderRadius: 'var(--radius-btn)',
+                  cursor: 'pointer',
+                  color: 'var(--ink-mid)',
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 0,
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                }}
+              >
+                ×
+              </button>
             </div>
 
             <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -248,7 +268,7 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
                   <label className="kicker">Filename</label>
-                  <button onClick={() => { setFilename('Apex_Brand_Guidelines_v2.4.pdf'); setRawText(RAW_GUIDELINE_SAMPLE); }} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                  <button onClick={() => { setFilename('Apex_Brand_Guidelines_v2.4.pdf'); setRawText(RAW_GUIDELINE_SAMPLE); }} className="btn-plain" style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                     Load Sample ↓
                   </button>
                 </div>

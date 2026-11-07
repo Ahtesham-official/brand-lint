@@ -3,9 +3,7 @@ import {
   ShieldCheck,
   Mail,
   ArrowRight,
-  UserCheck,
   Sparkles,
-  Lock,
   X,
   CheckCircle2,
 } from 'lucide-react';
@@ -19,6 +17,12 @@ interface AuthModalProps {
   onLoginAsRole: (role: UserRole) => void;
   onLoginAsUser: (user: User) => void;
 }
+
+const ROLE_BADGE: Record<UserRole, { bg: string; text: string; border: string }> = {
+  admin: { bg: '#fef3c7', text: '#92400e', border: '#fcd34d' },
+  creator: { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  reviewer: { bg: '#e0f2fe', text: '#075985', border: '#7dd3fc' },
+};
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -50,7 +54,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       setMagicLinkSent(true);
     } catch {
-      // Fallback
       setMagicLinkSent(true);
     } finally {
       setLoading(false);
@@ -58,49 +61,104 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
-              <ShieldCheck className="w-4 h-4" />
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 50,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(28, 25, 23, 0.55)',
+      backdropFilter: 'blur(3px)',
+      padding: 16,
+    }}>
+      <div style={{
+        background: 'var(--white)',
+        border: '1px solid var(--rule)',
+        boxShadow: '4px 4px 0px var(--btn-shadow)',
+        borderRadius: 'var(--radius-btn)',
+        width: '100%',
+        maxWidth: 520,
+        overflow: 'hidden',
+        fontFamily: 'var(--font-sans)',
+      }}>
+        {/* Editorial Header */}
+        <div style={{
+          padding: '20px 24px',
+          borderBottom: '1px solid var(--rule)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--paper)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 36,
+              height: 36,
+              background: 'var(--ink)',
+              color: '#fef3c7',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 'var(--radius-btn)',
+            }}>
+              <ShieldCheck style={{ width: 18, height: 18 }} />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">Sign in to BrandLint</h3>
-              <p className="text-xs text-slate-500">Supabase Auth (FR-1.1) & 1-Click Fast Demo Login (FR-1.2)</p>
+              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>
+                Sign in to BrandLint
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--ink-mid)', margin: '2px 0 0' }}>
+                Multi-tenant Governance &amp; Fast Persona Sign-In
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            style={{
+              width: 30,
+              height: 30,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--white)',
+              border: '1px solid var(--rule-dark)',
+              borderRadius: 'var(--radius-btn)',
+              cursor: 'pointer',
+              color: 'var(--ink)',
+              padding: 0,
+              boxShadow: '2px 2px 0px var(--btn-shadow)',
+            }}
           >
-            <X className="w-4 h-4" />
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Seeded Demo Login Cards (Fast login in <10s) */}
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Persona selector */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                Fast Demo Persona Sign-In (&lt;5s)
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span className="kicker-accent" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles style={{ width: 13, height: 13 }} /> Fast Demo Persona Sign-In (&lt;5s)
               </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium border border-blue-200">
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '2px 8px',
+                background: 'var(--accent-bg)',
+                color: 'var(--accent)',
+                border: '1px solid var(--rule)',
+                borderRadius: 'var(--radius-btn)',
+              }}>
                 Judge Ready
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-2.5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {SEEDED_USERS.map((user) => {
                 const isActive = currentUser.id === user.id;
-                const roleBadge =
-                  user.role === 'admin'
-                    ? 'bg-purple-50 text-purple-700 border-purple-200'
-                    : user.role === 'creator'
-                    ? 'bg-blue-50 text-blue-700 border-blue-200'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                const badge = ROLE_BADGE[user.role] || ROLE_BADGE.creator;
 
                 return (
                   <button
@@ -109,37 +167,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       onLoginAsUser(user);
                       onClose();
                     }}
-                    className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all ${
-                      isActive
-                        ? 'border-blue-600 bg-blue-50/40 ring-1 ring-blue-600'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/80'
-                    }`}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: isActive ? 'var(--paper)' : 'var(--white)',
+                      border: `1px solid ${isActive ? 'var(--rule-dark)' : 'var(--rule)'}`,
+                      borderLeft: isActive ? '4px solid var(--accent)' : '1px solid var(--rule)',
+                      borderRadius: 'var(--radius-btn)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                      transition: 'all 0.1s ease',
+                    }}
                   >
-                    <div className="flex items-center gap-3">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       {user.avatar ? (
                         <img
                           src={user.avatar}
                           alt={user.name}
-                          className="w-9 h-9 rounded-full object-cover border border-slate-200"
+                          style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--rule)' }}
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-xs">
-                          {user.name.slice(0, 2)}
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--paper-mid)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-serif)', border: '1px solid var(--rule)' }}>
+                          {user.name[0]}
                         </div>
                       )}
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-slate-900">{user.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-medium border uppercase tracking-wider ${roleBadge}`}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>{user.name}</span>
+                          <span style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 9,
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            background: badge.bg,
+                            color: badge.text,
+                            border: `1px solid ${badge.border}`,
+                            borderRadius: 'var(--radius-btn)',
+                          }}>
                             {user.role}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500">{user.title}</p>
+                        <p style={{ fontSize: 11, color: 'var(--ink-mid)', margin: '2px 0 0' }}>{user.title}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-blue-600">
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
                       <span>{isActive ? 'Current' : 'Select'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight style={{ width: 14, height: 14 }} />
                     </div>
                   </button>
                 );
@@ -147,44 +227,67 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-3 text-slate-400 font-medium">Or sign in with Magic Link</span>
-            </div>
+          <div style={{ position: 'relative', textAlign: 'center', margin: '4px 0' }}>
+            <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rule)' }} />
+            <span style={{
+              position: 'relative',
+              background: 'var(--white)',
+              padding: '0 12px',
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--ink-faint)',
+            }}>
+              Or Sign In with Magic Link
+            </span>
           </div>
 
           {/* Magic link form */}
           {magicLinkSent ? (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center space-y-2">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-              <h4 className="text-sm font-semibold text-emerald-900">Magic Link Dispatched</h4>
-              <p className="text-xs text-emerald-700">
-                We sent a secure magic link to <strong>{email}</strong>. For hackathon demo purposes, your session is instantly authenticated.
+            <div style={{
+              padding: '16px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: 'var(--radius-btn)',
+              textAlign: 'center',
+            }}>
+              <CheckCircle2 style={{ width: 28, height: 28, color: '#166534', margin: '0 auto 8px' }} />
+              <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 800, color: '#166534', margin: '0 0 4px' }}>Magic Link Dispatched</h4>
+              <p style={{ fontSize: 12, color: '#166534', margin: 0, lineHeight: 1.5 }}>
+                We sent a secure magic link to <strong>{email}</strong>. For hackathon demo purposes, your session is authenticated.
               </p>
               <button
                 onClick={() => setMagicLinkSent(false)}
-                className="text-xs text-emerald-800 underline mt-2 inline-block"
+                className="btn-plain"
+                style={{ fontSize: 12, color: '#166534', textDecoration: 'underline', marginTop: 10, cursor: 'pointer' }}
               >
                 Use another email
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSendMagicLink} className="space-y-3">
+            <form onSubmit={handleSendMagicLink} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="kicker" style={{ marginBottom: 6 }}>
                   Work Email Address
                 </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <div style={{ position: 'relative' }}>
+                  <Mail style={{ width: 15, height: 15, color: 'var(--ink-faint)', position: 'absolute', left: 12, top: 11 }} />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. yourname@brandlint.io"
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px 9px 36px',
+                      fontSize: 13,
+                      border: '1px solid var(--rule-dark)',
+                      background: 'var(--paper)',
+                      color: 'var(--ink)',
+                      outline: 'none',
+                      borderRadius: 'var(--radius-btn)',
+                    }}
                     required
                   />
                 </div>
@@ -192,7 +295,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="submit"
                 disabled={loading || !email.trim()}
-                className="w-full py-2 px-3 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '10px 16px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: loading || !email.trim() ? 'not-allowed' : 'pointer',
+                  boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+                }}
               >
                 {loading ? 'Sending...' : 'Send Magic Link'}
               </button>
@@ -203,4 +314,3 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
-

@@ -71,7 +71,7 @@ export const FixDiffModal: React.FC<FixDiffModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_#1c1917]"
           >
             <X className="w-4 h-4" />
           </button>

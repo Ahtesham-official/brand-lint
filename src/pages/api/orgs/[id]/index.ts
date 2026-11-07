@@ -16,7 +16,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Organisation not found.' });
       }
 
-      return res.status(200).json({ organization: org });
+      const members = await getOrganizationMembers(orgId);
+
+      return res.status(200).json({
+        organization: org,
+        members,
+        userRole: org.user_role || auth.role || 'creator',
+      });
     } catch (err: any) {
       console.error('Error fetching organization:', err);
       return res.status(500).json({ error: err.message || 'Failed to fetch organisation.' });

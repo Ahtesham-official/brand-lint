@@ -134,9 +134,9 @@ export const DemoGuideModal: React.FC<DemoGuideModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors shadow-[2px_2px_0px_#1c1917]"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 

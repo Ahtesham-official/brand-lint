@@ -222,7 +222,27 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
       <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 20, lineHeight: 1, padding: 4 }}>×</button>
+          <button
+            onClick={onClose}
+            style={{
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'var(--white)',
+              border: '1px solid var(--rule)',
+              borderRadius: 'var(--radius-btn)',
+              cursor: 'pointer',
+              color: 'var(--ink-mid)',
+              fontSize: 18,
+              lineHeight: 1,
+              padding: 0,
+              boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
+            }}
+          >
+            ×
+          </button>
         </div>
         <div style={{ padding: '24px' }}>{children}</div>
       </div>

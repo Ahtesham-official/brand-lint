@@ -109,16 +109,17 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
         <div style={{ padding: '0 28px', borderBottom: '1px solid var(--rule)', background: 'var(--white)', display: 'flex', gap: 24, fontSize: 13 }}>
           <button
             onClick={() => setActiveTab('comprehension')}
+            className="btn-plain"
             style={{
               padding: '14px 0',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               border: 'none',
+              borderBottom: activeTab === 'comprehension' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               background: 'none',
               cursor: 'pointer',
               color: activeTab === 'comprehension' ? 'var(--ink)' : 'var(--ink-light)',
-              borderBottom: activeTab === 'comprehension' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               fontWeight: activeTab === 'comprehension' ? 700 : 500,
             }}
           >
@@ -127,16 +128,17 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('comparison')}
+            className="btn-plain"
             style={{
               padding: '14px 0',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               border: 'none',
+              borderBottom: activeTab === 'comparison' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               background: 'none',
               cursor: 'pointer',
               color: activeTab === 'comparison' ? 'var(--ink)' : 'var(--ink-light)',
-              borderBottom: activeTab === 'comparison' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               fontWeight: activeTab === 'comparison' ? 700 : 500,
             }}
           >
@@ -145,16 +147,17 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('rules')}
+            className="btn-plain"
             style={{
               padding: '14px 0',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               border: 'none',
+              borderBottom: activeTab === 'rules' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               background: 'none',
               cursor: 'pointer',
               color: activeTab === 'rules' ? 'var(--ink)' : 'var(--ink-light)',
-              borderBottom: activeTab === 'rules' ? '2.5px solid var(--accent)' : '2.5px solid transparent',
               fontWeight: activeTab === 'rules' ? 700 : 500,
             }}
           >
