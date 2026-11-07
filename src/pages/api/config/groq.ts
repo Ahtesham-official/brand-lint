@@ -8,8 +8,8 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     const isConfigured = Boolean(key && key.trim().length > 5);
     return res.status(200).json({
       configured: isConfigured,
-      model: 'llama-3.3-70b-versatile',
-      engine: isConfigured ? 'Groq Llama-3.3 70B' : 'Deterministic Rule Engine',
+      model: 'openai/gpt-oss-120b',
+      engine: isConfigured ? 'Groq GPT-OSS 120B' : 'Deterministic Rule Engine',
     });
   }
 

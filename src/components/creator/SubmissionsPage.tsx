@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ArrowRight } from 'lucide-react';
+import { FileText, ArrowRight, Video, Image as ImageIcon } from 'lucide-react';
 import type { Submission, User } from '@/types';
 
 interface SubmissionsPageProps {
@@ -82,6 +82,45 @@ const SubmissionsPage: React.FC<SubmissionsPageProps> = ({
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                    {sub.media_type === 'video' || sub.video_url ? (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          padding: '2px 7px',
+                          background: 'var(--ink)',
+                          color: '#fef3c7',
+                          borderRadius: 'var(--radius-btn)',
+                        }}
+                      >
+                        <Video style={{ width: 11, height: 11 }} /> Video AI
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          padding: '2px 7px',
+                          background: 'var(--paper-mid)',
+                          color: 'var(--ink-mid)',
+                          borderRadius: 'var(--radius-btn)',
+                        }}
+                      >
+                        <ImageIcon style={{ width: 11, height: 11 }} /> Poster
+                      </span>
+                    )}
                     <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 17, color: 'var(--ink)' }}>
                       {sub.title}
                     </span>

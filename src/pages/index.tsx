@@ -21,6 +21,7 @@ import BrandPage from '@/components/admin/BrandPage';
 import SubmitPage from '@/components/creator/SubmitPage';
 import SubmissionsPage from '@/components/creator/SubmissionsPage';
 import CitedIssueReport from '@/components/report/CitedIssueReport';
+import { VideoAuditReport } from '@/components/video/VideoAuditReport';
 import { ReviewPage } from '@/components/reviewer/ReviewPage';
 import { AuditPage } from '@/components/reviewer/AuditPage';
 import { DemoGuideModal } from '@/components/demo/DemoGuideModal';
@@ -329,13 +330,16 @@ export default function Home() {
 
   const handleCreateSubmission = async (data: {
     title: string;
-    caption: string;
+    caption?: string;
     image_url: string;
     ocr_text?: string;
+    video_url?: string;
+    media_type?: 'image' | 'video';
   }) => {
     try {
       const res = await api.createSubmission({
         ...data,
+        caption: data.caption || '',
         creator_id: currentUser.id,
         brand_id: brand.id,
       });
@@ -343,7 +347,10 @@ export default function Home() {
       setIssues(res.issues);
       return res.submission;
     } catch {
-      const sub = store.createSubmission(data);
+      const sub = store.createSubmission({
+        ...data,
+        caption: data.caption || '',
+      });
       await refreshFromServer();
       return sub;
     }
@@ -420,8 +427,34 @@ export default function Home() {
     : null;
 
   const renderPage = () => {
-    // Cited Issue report takes over the main screen when an item is selected
+    // If active submission is a video, render VideoAuditReport with interactive timeline & AI popups
     if (activeSubmission) {
+      if (activeSubmission.media_type === 'video' || activeSubmission.video_url || (activeSubmission.video_violations && activeSubmission.video_violations.length > 0)) {
+        return (
+          <VideoAuditReport
+            submission={activeSubmission}
+            violations={activeSubmission.video_violations || []}
+            brand={brand}
+            currentUser={currentUser}
+            onBack={() => setSelectedSubmissionId(null)}
+            onSubmitReview={handleSubmitReview}
+            onApplyCorrection={(vId) => {
+              // mark violation corrected locally
+              setSubmissions((prev) =>
+                prev.map((s) => {
+                  if (s.id !== activeSubmission.id) return s;
+                  const updatedViolations = (s.video_violations || []).map((v) =>
+                    v.id === vId ? { ...v, dismissed: true } : v
+                  );
+                  return { ...s, video_violations: updatedViolations };
+                })
+              );
+            }}
+          />
+        );
+      }
+
+      // Default static poster cited issue report
       return (
         <CitedIssueReport
           submission={activeSubmission}
