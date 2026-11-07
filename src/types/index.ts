@@ -122,6 +122,28 @@ export interface SubmissionText {
   provenance: TextSpanProvenance[];
 }
 
+export interface VideoSegmentViolation {
+  id: string;
+  timestamp: number; // in seconds
+  end_timestamp?: number;
+  category: RuleCategory | 'audio_transcript' | 'on_screen_text' | 'visual_branding';
+  severity: Severity;
+  explanation: string;
+  evidence: string;
+  suggested_correction: string;
+  rule_id?: string;
+  source_citation?: string;
+  dismissed?: boolean;
+}
+
+export interface VideoMetadata {
+  duration: number; // in seconds
+  fps?: number;
+  resolution?: string;
+  transcript?: { timestamp: number; text: string; ocr?: string }[];
+  frames_analyzed?: number;
+}
+
 export interface Submission {
   id: string;
   brand_id: string;
@@ -129,7 +151,12 @@ export interface Submission {
   creator_name?: string;
   title: string;
   caption: string;
+  ocr_text?: string;
   image_url: string;
+  video_url?: string;
+  media_type?: 'image' | 'video';
+  video_metadata?: VideoMetadata;
+  video_violations?: VideoSegmentViolation[];
   status: SubmissionStatus;
   risk_score: number; // 0 - 100
   risk_level?: 'Low' | 'Moderate' | 'High' | 'Critical';
@@ -151,7 +178,8 @@ export interface IssueEvidence {
   fact_id?: string;
   fact_expiry?: string;
   delta_e?: number;
-  provenance?: 'caption' | 'ocr';
+  provenance?: 'caption' | 'ocr' | 'video_frame' | 'video_audio';
+  timestamp?: number;
 }
 
 export interface Issue {

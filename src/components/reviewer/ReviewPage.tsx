@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, CheckCircle2, XCircle, Send } from 'lucide-react';
+import { Eye, CheckCircle2, XCircle, Send, Video, Image as ImageIcon } from 'lucide-react';
 import { Brand, User, Submission } from '@/types';
 
 interface ReviewPageProps {
@@ -66,10 +66,51 @@ export const ReviewPage: React.FC<ReviewPageProps> = ({
       }}
     >
       <div style={{ minWidth: 0, flex: 1 }}>
-        <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
-          {sub.title}
-        </p>
-        <p style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          {sub.media_type === 'video' || sub.video_url ? (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                padding: '2px 6px',
+                background: 'var(--ink)',
+                color: '#fef3c7',
+                borderRadius: 'var(--radius-btn)',
+              }}
+            >
+              <Video style={{ width: 10, height: 10 }} /> Video
+            </span>
+          ) : (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                padding: '2px 6px',
+                background: 'var(--paper-mid)',
+                color: 'var(--ink-mid)',
+                borderRadius: 'var(--radius-btn)',
+              }}
+            >
+              <ImageIcon style={{ width: 10, height: 10 }} /> Poster
+            </span>
+          )}
+          <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+            {sub.title}
+          </p>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--ink-faint)', margin: 0 }}>
           {sub.creator_name ?? 'Unknown Creator'} · {timeAgo(sub.created_at)}
         </p>
       </div>

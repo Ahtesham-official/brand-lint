@@ -187,6 +187,8 @@ class ApiClient {
     caption: string;
     image_url: string;
     ocr_text?: string;
+    video_url?: string;
+    media_type?: 'image' | 'video';
     creator_id?: string;
     brand_id?: string;
   }): Promise<{ submission: Submission; issues: Issue[] }> {
@@ -227,6 +229,19 @@ class ApiClient {
         body: JSON.stringify({ decision, comment, reviewer_id }),
       }
     );
+  }
+
+  public async extractVideo(videoUrl: string, videoTitle: string, userHintText?: string): Promise<{
+    success: boolean;
+    ocr_summary: string;
+    audio_summary: string;
+    frames: any[];
+    metadata: { duration: number; fps: number; resolution: string };
+  }> {
+    return this.request('/api/submissions/extract-video', {
+      method: 'POST',
+      body: JSON.stringify({ videoUrl, videoTitle, userHintText }),
+    });
   }
 
   // --- Audit Logs ---

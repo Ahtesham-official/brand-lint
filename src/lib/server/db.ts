@@ -570,6 +570,11 @@ class ServerDatabase {
     title: string;
     caption: string;
     image_url: string;
+    ocr_text?: string;
+    video_url?: string;
+    media_type?: 'image' | 'video';
+    video_metadata?: any;
+    video_violations?: any[];
     creator_id?: string;
     brand_id?: string;
   }): Submission {
@@ -584,7 +589,12 @@ class ServerDatabase {
       creator_name: user?.name || 'Alex Rivera',
       title: data.title,
       caption: data.caption,
+      ocr_text: data.ocr_text,
       image_url: data.image_url,
+      video_url: data.video_url,
+      media_type: data.media_type || (data.video_url ? 'video' : 'image'),
+      video_metadata: data.video_metadata,
+      video_violations: data.video_violations,
       status: 'analyzing',
       risk_score: 0,
       risk_level: 'Low',

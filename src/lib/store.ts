@@ -342,6 +342,8 @@ class BrandLintStore {
     caption: string;
     image_url: string;
     ocr_text?: string;
+    video_url?: string;
+    media_type?: 'image' | 'video';
   }): Submission {
     const subId = `sub-${Date.now()}`;
     const newSubmission: Submission = {
@@ -352,6 +354,9 @@ class BrandLintStore {
       title: data.title,
       caption: data.caption,
       image_url: data.image_url,
+      video_url: data.video_url,
+      media_type: data.media_type || (data.video_url ? 'video' : 'image'),
+      ocr_text: data.ocr_text,
       status: 'analyzing',
       risk_score: 0,
       created_at: new Date().toISOString(),
