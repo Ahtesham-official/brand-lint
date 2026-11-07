@@ -212,3 +212,195 @@ button:disabled:not(.btn-plain) {
   to   { opacity: 1; transform: translateY(0);   }
 }
 .animate-in { animation: fadeUp 0.2s ease both; }
+
+.landing-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 22%, rgba(255, 255, 255, 0.96), transparent 48%),
+    radial-gradient(ellipse at 0% 8%, rgba(203, 228, 255, 0.72), transparent 32%),
+    radial-gradient(ellipse at 100% 72%, rgba(203, 228, 255, 0.64), transparent 34%),
+    var(--paper);
+}
+
+.landing-stage::before,
+.landing-stage::after {
+  position: absolute;
+  z-index: 0;
+  width: 150px;
+  height: 130px;
+  background-image: radial-gradient(rgba(8, 125, 245, 0.17) 1.5px, transparent 1.6px);
+  background-size: 14px 14px;
+  content: '';
+  pointer-events: none;
+  mask-image: linear-gradient(135deg, #000 10%, transparent 90%);
+}
+
+.landing-stage::before {
+  top: 12px;
+  left: 2px;
+}
+
+.landing-stage::after {
+  right: 2px;
+  bottom: 80px;
+  transform: rotate(180deg);
+}
+
+.landing-watermark {
+  position: absolute;
+  z-index: 0;
+  top: 148px;
+  width: clamp(260px, 25vw, 390px);
+  opacity: 0.36;
+  pointer-events: none;
+  user-select: none;
+}
+
+.landing-watermark-left {
+  left: clamp(-115px, calc((100vw - 1300px) / 2), 70px);
+  transform: rotate(8deg);
+}
+
+.landing-watermark-right {
+  right: clamp(-115px, calc((100vw - 1300px) / 2), 70px);
+  top: 170px;
+  transform: rotate(-6deg);
+}
+
+.landing-watermark-window {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 18px 48px rgba(41, 103, 176, 0.14);
+  color: #17345b;
+  font-family: var(--font-sans);
+}
+
+.landing-watermark-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 11px 15px 8px;
+  border-bottom: 1px solid rgba(123, 164, 207, 0.12);
+}
+
+.landing-watermark-toolbar span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fa7c83;
+}
+
+.landing-watermark-toolbar span:nth-child(2) { background: #f5ca55; }
+.landing-watermark-toolbar span:nth-child(3) { background: #47c987; }
+
+.landing-watermark-appbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(123, 164, 207, 0.16);
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.landing-watermark-symbol {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #087df5 0 48%, #20b8d5 52% 100%);
+  clip-path: polygon(0 42%, 32% 8%, 52% 27%, 76% 0, 100% 22%, 52% 78%, 31% 57%, 17% 72%);
+}
+
+.landing-watermark-content {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(236, 245, 255, 0.56);
+}
+
+.landing-watermark-nav {
+  display: flex;
+  flex: 0 0 34%;
+  flex-direction: column;
+  gap: 5px;
+  color: #526b89;
+  font-size: 9px;
+}
+
+.landing-watermark-nav span {
+  padding: 7px 8px;
+  border-radius: 6px;
+}
+
+.landing-watermark-nav .landing-watermark-nav-active {
+  background: rgba(8, 125, 245, 0.13);
+  color: #087df5;
+  font-weight: 700;
+}
+
+.landing-watermark-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 9px;
+  padding: 8px;
+  border: 1px solid rgba(140, 176, 214, 0.16);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 9px;
+}
+
+.landing-watermark-panel > strong {
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+
+.landing-watermark-check {
+  padding: 8px 7px;
+  border-radius: 5px;
+  background: rgba(232, 244, 255, 0.85);
+}
+
+.landing-watermark-check::before {
+  margin-right: 6px;
+  color: #20b8d5;
+  content: '✓';
+  font-weight: 800;
+}
+
+.landing-watermark-review,
+.landing-watermark-fix {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 8px;
+  border-radius: 7px;
+}
+
+.landing-watermark-review {
+  background: rgba(255, 231, 236, 0.68);
+  color: #526b89;
+}
+
+.landing-watermark-review b { color: #17345b; }
+.landing-watermark-review span:first-of-type { color: #dc6472; }
+
+.landing-watermark-fix {
+  background: rgba(220, 248, 239, 0.75);
+  color: #168765;
+}
+
+.landing-hero,
+.landing-workspaces {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 760px) {
+  .landing-watermark {
+    display: none;
+  }
+}

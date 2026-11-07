@@ -87,8 +87,69 @@ export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onOpenAut
         </button>
       </div>
 
+      <main className="landing-stage">
+        <div className="landing-watermark landing-watermark-left" aria-hidden="true">
+          <div className="landing-watermark-window">
+            <div className="landing-watermark-toolbar">
+              <span /><span /><span />
+            </div>
+            <div className="landing-watermark-appbar">
+              <span className="landing-watermark-symbol" />
+              <span>BrandLint</span>
+            </div>
+            <div className="landing-watermark-content">
+              <div className="landing-watermark-nav">
+                <span className="landing-watermark-nav-active">Dashboard</span>
+                <span>Guidelines</span>
+                <span>Fact Vault</span>
+                <span>Submissions</span>
+                <span>Reviews</span>
+              </div>
+              <div className="landing-watermark-panel">
+                <strong>Guideline Rules</strong>
+                <div className="landing-watermark-check">Use approved brand colors</div>
+                <div className="landing-watermark-check">Maintain brand tone</div>
+                <div className="landing-watermark-check">Include required disclaimer</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="landing-watermark landing-watermark-right" aria-hidden="true">
+          <div className="landing-watermark-window">
+            <div className="landing-watermark-toolbar">
+              <span /><span /><span />
+            </div>
+            <div className="landing-watermark-appbar">
+              <span className="landing-watermark-symbol" />
+              <span>BrandLint</span>
+            </div>
+            <div className="landing-watermark-content">
+              <div className="landing-watermark-nav">
+                <span className="landing-watermark-nav-active">Dashboard</span>
+                <span>Guidelines</span>
+                <span>Fact Vault</span>
+                <span>Submissions</span>
+                <span>Reviews</span>
+              </div>
+              <div className="landing-watermark-panel">
+                <strong>Content Review</strong>
+                <div className="landing-watermark-review">
+                  <b>24-Month Warranty!</b>
+                  <span>2 Issues Detected</span>
+                  <span>Unsupported claim</span>
+                </div>
+                <div className="landing-watermark-fix">
+                  <b>Suggested Fix</b>
+                  <span>“12-Month Warranty”</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       {/* ── Hero ─────────────────────────────────── */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '80px 32px 60px', textAlign: 'center' }}>
+      <div className="landing-hero" style={{ maxWidth: 760, margin: '0 auto', padding: '80px 32px 60px', textAlign: 'center' }}>
         <div className="kicker-accent" style={{ marginBottom: 16, display: 'block', textAlign: 'center' }}>
           AI-Powered Brand Governance
         </div>
@@ -117,7 +178,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onOpenAut
       </div>
 
       {/* ── Existing workspaces ───────────────────── */}
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
+      <div className="landing-workspaces" style={{ maxWidth: 680, margin: '0 auto', padding: '0 32px 80px' }}>
         {loadingOrgs ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: 'var(--ink-faint)', padding: '32px 0' }}>
             <Loader2 style={{ width: 16, height: 16 }} /> Loading workspaces…
@@ -172,6 +233,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onOpenAut
           ))}
         </div>
       </div>
+      </main>
 
       {/* ── Modals ───────────────────────────────── */}
       {showJoin && (
