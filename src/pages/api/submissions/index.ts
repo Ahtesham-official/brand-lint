@@ -14,7 +14,7 @@ export const config = {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const submissions = serverDb.getSubmissions();
+    const submissions = await serverDb.getSubmissions();
     return res.status(200).json(submissions);
   }
 
@@ -30,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // 1. Create submission record
-    const submission = serverDb.createSubmission({
+    const submission = await serverDb.createSubmission({
       title: title || (isVideo ? 'Video Campaign Submission' : 'Campaign Submission'),
       caption: isVideo ? '' : (caption || ''),
       ocr_text: ocr_text || undefined,
@@ -42,9 +42,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // 2. Fetch the active Admin rules and Fact Vault records
-    const activeRules = serverDb.getActiveRules();
-    const brand = serverDb.getBrand();
-    const facts = serverDb.getFacts();
+    const activeRules = await serverDb.getActiveRules();
+    const brand = await serverDb.getBrand();
+    const facts = await serverDb.getFacts();
 
     // 3. For video, audit is strictly based on extracted frames (OCR/visual) and audio (Whisper).
     // For static posters, use text check engine on caption + poster graphic.
@@ -155,9 +155,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : ocr_text;
 
     // 6. Save issues and update submission status
-    serverDb.saveSubmissionIssues(submission.id, analysis.issues);
+    await serverDb.saveSubmissionIssues(submission.id, analysis.issues);
 
-    const updatedSub = serverDb.updateSubmission(submission.id, {
+    const updatedSub = await serverDb.updateSubmission(submission.id, {
       status: 'analyzed',
       risk_score: analysis.riskScore,
       risk_level: analysis.riskLevel,
@@ -175,7 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         : undefined,
     });
 
-    serverDb.createAuditLog({
+    await serverDb.createAuditLog({
       actor_id: submission.creator_id,
       actor_name: submission.creator_name || 'Creator',
       actor_role: 'creator',

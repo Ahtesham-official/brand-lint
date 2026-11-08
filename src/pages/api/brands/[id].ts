@@ -1,15 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const { id } = req.query;
+
   if (req.method === 'GET') {
-    const brand = serverDb.getBrand();
+    const brand = await serverDb.getBrand();
     return res.status(200).json(brand);
   }
 
-  if (req.method === 'PATCH') {
+  if (req.method === 'PATCH' || req.method === 'PUT') {
     const updates = req.body;
-    const updated = serverDb.updateBrand(updates);
+    const updated = await serverDb.updateBrand(updates);
     return res.status(200).json(updated);
   }
 

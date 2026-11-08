@@ -7,14 +7,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const subId = Array.isArray(id) ? id[0] : id;
 
   if (req.method === 'POST') {
-    const submission = serverDb.getSubmissionById(subId as string);
+    const submission = await serverDb.getSubmissionById(subId as string);
     if (!submission) {
       return res.status(404).json({ error: 'Submission not found' });
     }
 
-    const activeRules = serverDb.getActiveRules();
-    const brand = serverDb.getBrand();
-    const facts = serverDb.getFacts();
+    const activeRules = await serverDb.getActiveRules();
+    const brand = await serverDb.getBrand();
+    const facts = await serverDb.getFacts();
 
     const analysis = await runCheckEngineAsync({
       submissionId: submission.id,
@@ -26,15 +26,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       facts,
     });
 
-    serverDb.saveSubmissionIssues(submission.id, analysis.issues);
-    const updated = serverDb.updateSubmission(submission.id, {
+    await serverDb.saveSubmissionIssues(submission.id, analysis.issues);
+    const updated = await serverDb.updateSubmission(submission.id, {
       status: 'analyzed',
       risk_score: analysis.riskScore,
       risk_level: analysis.riskLevel,
       analyzed_at: new Date().toISOString(),
     });
 
-    serverDb.createAuditLog({
+    await serverDb.createAuditLog({
       actor_id: submission.creator_id,
       actor_name: submission.creator_name || 'Creator',
       actor_role: 'creator',

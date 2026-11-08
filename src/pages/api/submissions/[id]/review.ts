@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 import { ReviewDecision } from '@/types';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
   const subId = Array.isArray(id) ? id[0] : id;
 
@@ -12,14 +12,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: 'Valid decision ("approve" or "request_changes") is required' });
     }
 
-    const review = serverDb.createReview({
+    const review = await serverDb.createReview({
       submission_id: subId as string,
       reviewer_id: reviewer_id || 'usr-reviewer-01',
       decision: decision as ReviewDecision,
       comment: comment || '',
     });
 
-    const sub = serverDb.getSubmissionById(subId as string);
+    const sub = await serverDb.getSubmissionById(subId as string);
 
     return res.status(200).json({
       success: true,

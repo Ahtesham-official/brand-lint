@@ -2,13 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 import { UserRole } from '@/types';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const { role, userId } = req.body || {};
-    const users = serverDb.getUsers();
+    const users = await serverDb.getUsers();
 
     if (userId) {
-      const found = serverDb.getUserById(userId);
+      const found = await serverDb.getUserById(userId);
       if (!found) {
         return res.status(401).json({ error: 'Unauthorized: Unknown demo profile ID.' });
       }

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const { email } = req.body;
     if (!email || typeof email !== 'string') {
@@ -9,10 +9,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     }
 
     // Check if user exists in database
-    let user = serverDb.getUserByEmail(email);
+    let user = await serverDb.getUserByEmail(email);
     if (!user) {
       // Find nearest matching seeded user or default to creator
-      const users = serverDb.getUsers();
+      const users = await serverDb.getUsers();
       if (email.toLowerCase().includes('admin')) {
         user = users.find((u) => u.role === 'admin') || users[0];
       } else if (email.toLowerCase().includes('review')) {

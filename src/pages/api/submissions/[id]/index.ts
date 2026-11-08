@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { id } = req.query;
   const subId = Array.isArray(id) ? id[0] : id;
 
@@ -9,14 +9,14 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'Submission ID is required' });
   }
 
-  const submission = serverDb.getSubmissionById(subId);
+  const submission = await serverDb.getSubmissionById(subId);
   if (!submission) {
     return res.status(404).json({ error: 'Submission not found' });
   }
 
   if (req.method === 'GET') {
-    const issues = serverDb.getIssues(subId);
-    const reviews = serverDb.getReviews(subId);
+    const issues = await serverDb.getIssues(subId);
+    const reviews = await serverDb.getReviews(subId);
     return res.status(200).json({
       submission,
       issues,
@@ -26,7 +26,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
   if (req.method === 'PATCH') {
     const updates = req.body;
-    const updated = serverDb.updateSubmission(subId, updates);
+    const updated = await serverDb.updateSubmission(subId, updates);
     return res.status(200).json(updated);
   }
 

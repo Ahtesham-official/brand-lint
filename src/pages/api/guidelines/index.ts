@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const guidelines = serverDb.getGuidelines();
+    const guidelines = await serverDb.getGuidelines();
     return res.status(200).json(guidelines);
   }
 
@@ -12,7 +12,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
     if (!raw_text || !raw_text.trim()) {
       return res.status(400).json({ error: 'Guideline text is required' });
     }
-    const guideline = serverDb.createGuideline(
+    const guideline = await serverDb.createGuideline(
       filename || 'Brand_Guidelines.pdf',
       raw_text.trim(),
       brand_id
