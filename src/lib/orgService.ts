@@ -60,33 +60,33 @@ function getInitialStore(): OrgStoreSchema {
   };
 }
 
+let inMemoryOrgStore: OrgStoreSchema | null = null;
+
 function readLocalOrgStore(): OrgStoreSchema {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(ORG_DB_FILE)) {
-      const initial = getInitialStore();
-      fs.writeFileSync(ORG_DB_FILE, JSON.stringify(initial, null, 2), 'utf-8');
-      return initial;
-    }
-    const content = fs.readFileSync(ORG_DB_FILE, 'utf-8');
-    return JSON.parse(content) as OrgStoreSchema;
-  } catch (err) {
-    console.error('Error reading local org store:', err);
-    return getInitialStore();
+  if (inMemoryOrgStore) {
+    return inMemoryOrgStore;
   }
+  try {
+    if (fs.existsSync(ORG_DB_FILE)) {
+      const content = fs.readFileSync(ORG_DB_FILE, 'utf-8');
+      inMemoryOrgStore = JSON.parse(content) as OrgStoreSchema;
+      return inMemoryOrgStore;
+    }
+  } catch {}
+
+  inMemoryOrgStore = getInitialStore();
+  writeLocalOrgStore(inMemoryOrgStore);
+  return inMemoryOrgStore;
 }
 
 function writeLocalOrgStore(data: OrgStoreSchema): void {
+  inMemoryOrgStore = data;
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(ORG_DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing local org store:', err);
-  }
+  } catch {}
 }
 
 function getUserMeta(userId: string) {

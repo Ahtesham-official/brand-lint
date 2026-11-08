@@ -168,31 +168,28 @@ class ServerDatabase {
   }
 
   private readDb(): DatabaseSchema {
-    this.ensureDataDir();
+    if (this.inMemoryData) {
+      return this.inMemoryData;
+    }
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(raw);
+        this.inMemoryData = JSON.parse(raw);
+        return this.inMemoryData!;
       }
-    } catch (e) {
-      console.warn('Error reading brandlint.db.json, falling back to memory/default:', e);
-    }
+    } catch {}
 
-    if (!this.inMemoryData) {
-      this.inMemoryData = getDefaultData();
-      this.writeDb(this.inMemoryData);
-    }
+    this.inMemoryData = getDefaultData();
+    this.writeDb(this.inMemoryData);
     return this.inMemoryData;
   }
 
   private writeDb(data: DatabaseSchema): void {
     this.inMemoryData = data;
-    this.ensureDataDir();
     try {
+      this.ensureDataDir();
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (e) {
-      console.warn('Error writing brandlint.db.json (persisting in memory):', e);
-    }
+    } catch {}
   }
 
   // --- Reset to clean/empty state ---
