@@ -29,6 +29,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { GroqKeyModal } from '@/components/demo/GroqKeyModal';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { DEMO_SUBMISSION_INITIAL, SEEDED_USERS } from '@/data/seedData';
+import { AppMode } from '@/components/navigation/ModeToggle';
 
 const DEFAULT_PAGE: Record<UserRole, Page> = {
   admin: 'guidelines',
@@ -60,6 +61,24 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
   const [groqActive, setGroqActive] = useState(false);
+  const [appMode, setAppMode] = useState<AppMode>('demo');
+
+  // Load appMode from localStorage or query param
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('brandlint_app_mode') as AppMode | null;
+      if (saved === 'actual' || saved === 'demo') {
+        setAppMode(saved);
+      }
+    }
+  }, []);
+
+  const handleToggleAppMode = (mode: AppMode) => {
+    setAppMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandlint_app_mode', mode);
+    }
+  };
 
   // Sync activeOrgId from URL query param (?org=...)
   useEffect(() => {
@@ -629,6 +648,8 @@ export default function Home() {
           currentUser={currentUser}
           onSelectUser={handleSelectDemoUser}
           onEnterOrg={handleEnterOrg}
+          appMode={appMode}
+          onToggleAppMode={handleToggleAppMode}
         />
       </div>
     );
@@ -654,6 +675,8 @@ export default function Home() {
         activeRulesCount={activeRulesCount}
         factsCount={facts.length}
         onExitOrg={handleExitOrg}
+        appMode={appMode}
+        onToggleAppMode={handleToggleAppMode}
       />
 
       <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', background: 'var(--paper)' }}>

@@ -5,8 +5,9 @@ import { SEEDED_USERS } from '@/data/seedData';
 import {
   FileText, Database, PenTool, Eye, BookOpen, Palette,
   RefreshCw, PlayCircle, LogIn, History, Cpu, Building2,
-  ArrowLeft, Sparkles, UserCheck,
+  ArrowLeft, Sparkles, UserCheck, ShieldCheck,
 } from 'lucide-react';
+import { ModeToggle, AppMode } from '@/components/navigation/ModeToggle';
 
 export type Page =
   | 'dashboard' | 'guidelines' | 'rules' | 'facts' | 'brand'
@@ -27,6 +28,8 @@ interface SidebarProps {
   activeRulesCount: number;
   factsCount: number;
   onExitOrg?: () => void;
+  appMode?: AppMode;
+  onToggleAppMode?: (mode: AppMode) => void;
 }
 
 const NAV_ITEMS: { page: Page; label: string; icon: React.ElementType; roles: UserRole[] }[] = [
@@ -44,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   brand, currentUser, activePage, onNavigate, onRoleChange, onSelectDemoUser,
   onResetSeed, onOpenDemoGuide, onOpenAuth, onOpenGroqModal,
   groqActive, activeRulesCount, factsCount, onExitOrg,
+  appMode = 'demo', onToggleAppMode,
 }) => {
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(currentUser.role));
 
@@ -62,7 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }}>
 
       {/* ── Logo / Brand ─────────────────────────── */}
-      <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid var(--rule)' }}>
+      <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid var(--rule)' }}>
         <button
           onClick={onExitOrg}
           className="btn-plain"
@@ -80,11 +84,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </button>
 
+        {/* Mode Toggle inside Sidebar Header */}
+        {onToggleAppMode && (
+          <div style={{ marginTop: 14 }}>
+            <ModeToggle
+              mode={appMode}
+              onToggle={onToggleAppMode}
+              style={{ width: '100%', justifyContent: 'center' }}
+            />
+          </div>
+        )}
+
         {onExitOrg && (
           <button
             onClick={onExitOrg}
             className="btn-plain"
-            style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--ink-faint)', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.03em', padding: 0, boxShadow: 'none', transform: 'none' }}
+            style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--ink-faint)', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.03em', padding: 0, boxShadow: 'none', transform: 'none' }}
           >
             <ArrowLeft style={{ width: 11, height: 11 }} /> Switch workspace
           </button>
@@ -218,94 +233,125 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <RefreshCw style={{ width: 11, height: 11 }} /> Reset Demo Seed
         </button>
 
-        {/* Judge Demo Profile Switcher */}
-        <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 12, marginTop: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span className="kicker" style={{ color: 'var(--ink-mid)' }}>Demo Persona</span>
-            <span
-              className="badge"
-              style={{
-                fontSize: 9,
-                padding: '2px 6px',
-                background: currentUser.role === 'admin' ? '#102142' : currentUser.role === 'creator' ? '#eff6ff' : '#e0f2fe',
-                color: currentUser.role === 'admin' ? '#e0f2fe' : currentUser.role === 'creator' ? '#1e40af' : '#075985',
-                borderColor: 'transparent',
-                textTransform: 'uppercase',
-                fontWeight: 700,
-              }}
-            >
-              {currentUser.role}
-            </span>
-          </div>
-
-          {/* Active persona preview */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, padding: '8px 10px', background: 'var(--paper)', border: '1px solid var(--rule)' }}>
-            <div style={{ width: 30, height: 30, background: 'var(--white)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0, fontFamily: 'var(--font-serif)', overflow: 'hidden' }}>
-              {currentUser.avatar ? (
-                <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                currentUser.name[0]
-              )}
+        {/* Judge Demo Profile Switcher — visible only in demo mode */}
+        {appMode === 'demo' ? (
+          <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 12, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span className="kicker" style={{ color: 'var(--ink-mid)' }}>Demo Persona</span>
+              <span
+                className="badge"
+                style={{
+                  fontSize: 9,
+                  padding: '2px 6px',
+                  background: currentUser.role === 'admin' ? '#102142' : currentUser.role === 'creator' ? '#eff6ff' : '#e0f2fe',
+                  color: currentUser.role === 'admin' ? '#e0f2fe' : currentUser.role === 'creator' ? '#1e40af' : '#075985',
+                  borderColor: 'transparent',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                }}
+              >
+                {currentUser.role}
+              </span>
             </div>
-            <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</div>
+
+            {/* Active persona preview */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10, padding: '8px 10px', background: 'var(--paper)', border: '1px solid var(--rule)' }}>
+              <div style={{ width: 30, height: 30, background: 'var(--white)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--ink)', flexShrink: 0, fontFamily: 'var(--font-serif)', overflow: 'hidden' }}>
+                {currentUser.avatar ? (
+                  <img src={currentUser.avatar} alt={currentUser.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  currentUser.name[0]
+                )}
+              </div>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</div>
+              </div>
+            </div>
+
+            {/* Switch Demo Profile Pills */}
+            <div className="kicker" style={{ marginBottom: 6, fontSize: 9, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <UserCheck style={{ width: 10, height: 10 }} /> Switch Persona
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {SEEDED_USERS.map((user) => {
+                const isCurrent = currentUser.id === user.id;
+                return (
+                  <button
+                    key={user.id}
+                    onClick={() => onSelectDemoUser ? onSelectDemoUser(user.id) : onRoleChange(user.role)}
+                    className="btn-plain"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 10px',
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      background: isCurrent ? 'var(--btn-primary)' : 'transparent',
+                      color: isCurrent ? 'var(--white)' : 'var(--ink-mid)',
+                      border: `1px solid ${isCurrent ? 'var(--rule-dark)' : 'var(--rule)'}`,
+                      boxShadow: 'none',
+                      transform: 'none',
+                      textAlign: 'left',
+                      width: '100%',
+                      transition: 'all 0.1s ease',
+                    }}
+                    title={`Switch to ${user.name} (${user.role})`}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: isCurrent ? 'var(--accent)' : 'var(--rule)',
+                      }} />
+                      <span>{user.name}</span>
+                    </div>
+                    <span style={{
+                      fontSize: 9,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      opacity: isCurrent ? 0.9 : 0.6,
+                      fontFamily: 'var(--font-mono)',
+                    }}>
+                      {user.role}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
-
-          {/* Switch Demo Profile Pills */}
-          <div className="kicker" style={{ marginBottom: 6, fontSize: 9, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <UserCheck style={{ width: 10, height: 10 }} /> Switch Persona
+        ) : (
+          <div style={{ borderTop: '1px solid var(--rule)', paddingTop: 12, marginTop: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span className="kicker" style={{ color: 'var(--ink-mid)' }}>Signed In Profile</span>
+              <span
+                className="badge"
+                style={{
+                  fontSize: 9,
+                  padding: '2px 6px',
+                  background: '#2563eb',
+                  color: '#ffffff',
+                  borderColor: 'transparent',
+                  textTransform: 'uppercase',
+                  fontWeight: 700,
+                }}
+              >
+                {currentUser.role}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', background: 'var(--paper)', border: '1px solid var(--rule)' }}>
+              <div style={{ width: 30, height: 30, background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, flexShrink: 0, borderRadius: '50%' }}>
+                {currentUser.name[0]}
+              </div>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--ink-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.email}</div>
+              </div>
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {SEEDED_USERS.map((user) => {
-              const isCurrent = currentUser.id === user.id;
-              return (
-                <button
-                  key={user.id}
-                  onClick={() => onSelectDemoUser ? onSelectDemoUser(user.id) : onRoleChange(user.role)}
-                  className="btn-plain"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 10px',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    background: isCurrent ? 'var(--btn-primary)' : 'transparent',
-                    color: isCurrent ? 'var(--white)' : 'var(--ink-mid)',
-                    border: `1px solid ${isCurrent ? 'var(--rule-dark)' : 'var(--rule)'}`,
-                    boxShadow: 'none',
-                    transform: 'none',
-                    textAlign: 'left',
-                    width: '100%',
-                    transition: 'all 0.1s ease',
-                  }}
-                  title={`Switch to ${user.name} (${user.role})`}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: isCurrent ? 'var(--accent)' : 'var(--rule)',
-                    }} />
-                    <span>{user.name}</span>
-                  </div>
-                  <span style={{
-                    fontSize: 9,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    opacity: isCurrent ? 0.9 : 0.6,
-                    fontFamily: 'var(--font-mono)',
-                  }}>
-                    {user.role}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        )}
       </div>
     </aside>
   );

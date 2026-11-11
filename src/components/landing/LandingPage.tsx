@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
-import { ArrowRight, Plus, Link as LinkIcon, Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, Plus, Link as LinkIcon, Loader2, ArrowLeft, CheckCircle2, Sparkles, ShieldCheck } from 'lucide-react';
 import { User } from '@/types';
 import { Organization, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
+import { ModeToggle, AppMode } from '@/components/navigation/ModeToggle';
 
 export type LandingView = 'landing' | 'select-profile' | 'select-workspace';
 
@@ -13,6 +14,8 @@ interface LandingPageProps {
   onSelectUser: (user: User) => void;
   onEnterOrg: (orgId: string) => void;
   onOpenAuth?: () => void;
+  appMode?: AppMode;
+  onToggleAppMode?: (mode: AppMode) => void;
 }
 
 const ROLE_STYLE: Record<OrgRole, { bg: string; color: string; border: string }> = {
@@ -21,7 +24,14 @@ const ROLE_STYLE: Record<OrgRole, { bg: string; color: string; border: string }>
   reviewer: { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
 };
 
-export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onSelectUser, onEnterOrg }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({
+  currentUser,
+  onSelectUser,
+  onEnterOrg,
+  onOpenAuth,
+  appMode = 'demo',
+  onToggleAppMode,
+}) => {
   const router = useRouter();
   const [view, setView]                   = useState<LandingView>('landing');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -149,6 +159,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ currentUser, onSelectU
           <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 20, color: 'var(--ink)', letterSpacing: '-0.02em' }}>BrandLint</span>
           <span className="badge" style={{ marginLeft: 4, borderColor: 'var(--rule)', color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)' }}>v1.0</span>
         </div>
+
+        {/* Center: Mode Switcher in the top nav */}
+        {onToggleAppMode && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ModeToggle mode={appMode} onToggle={onToggleAppMode} />
+          </div>
+        )}
 
         {/* Top-right actions depending on current view */}
         {view === 'select-profile' && (
