@@ -334,8 +334,9 @@ export default function Home() {
   };
 
   const handleAddGuideline = async (filename: string, raw_text: string) => {
+    const targetOrg = activeOrgId || brand.id;
     try {
-      const newGl = await api.uploadGuideline(filename, raw_text, brand.id);
+      const newGl = await api.uploadGuideline(filename, raw_text, targetOrg, targetOrg);
       await refreshFromServer();
       return newGl;
     } catch {

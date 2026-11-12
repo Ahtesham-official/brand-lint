@@ -17,10 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       // 1. Extract enforceable rules & generate AI comprehension/facts dynamically from document text
-      const [rules, enhancement] = await Promise.all([
-        extractRulesFromGuidelineText(guideline.raw_text, guideline.id, orgId),
-        analyzeAndEnhanceGuideline(guideline.raw_text, guideline.filename),
-      ]);
+      // Run sequentially to stay well within Groq TPM limits and prevent 429 concurrency spikes
+      const rules = await extractRulesFromGuidelineText(guideline.raw_text, guideline.id, orgId);
+      const enhancement = await analyzeAndEnhanceGuideline(guideline.raw_text, guideline.filename);
 
       const { analysis, enhanced_version, extracted_facts, warnings } = enhancement;
 

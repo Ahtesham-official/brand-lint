@@ -73,10 +73,11 @@ class ApiClient {
     return this.request<Guideline[]>(`/api/guidelines${query}`);
   }
 
-  public async uploadGuideline(filename: string, raw_text: string, brand_id?: string): Promise<Guideline> {
+  public async uploadGuideline(filename: string, raw_text: string, brand_id?: string, org_id?: string): Promise<Guideline> {
+    const targetOrg = org_id || brand_id;
     return this.request<Guideline>('/api/guidelines', {
       method: 'POST',
-      body: JSON.stringify({ filename, raw_text, brand_id, org_id: brand_id }),
+      body: JSON.stringify({ filename, raw_text, brand_id: brand_id || targetOrg, org_id: targetOrg }),
     });
   }
 

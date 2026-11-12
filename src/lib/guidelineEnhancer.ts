@@ -18,6 +18,38 @@ export interface EnhanceGuidelineResult {
 const NOT_SPECIFIED = 'Not specified in document';
 
 /**
+ * Executes a Groq completion request with automatic fallback to llama-3.3-70b-versatile
+ * if rate limit (429) occurs.
+ */
+async function callGroqWithFallback(apiKey: string, body: any): Promise<Response> {
+  const primaryModel = body.model || 'openai/gpt-oss-120b';
+  const fallbackModel = 'llama-3.3-70b-versatile';
+
+  let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey.trim()}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (response.status === 429 && primaryModel !== fallbackModel) {
+    console.warn(`Groq model ${primaryModel} reached 429 rate limit. Seamlessly falling back to ${fallbackModel}...`);
+    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey.trim()}`,
+      },
+      body: JSON.stringify({ ...body, model: fallbackModel }),
+    });
+  }
+
+  return response;
+}
+
+/**
  * Analyzes raw guidelines using Groq LLM and generates:
  * 1. Document-grounded AI Comprehension Summary (using "Not specified in document" when omitted)
  * 2. An Enhanced, Production-Grade Markdown Version of THIS exact document
@@ -40,18 +72,12 @@ export async function analyzeAndEnhanceGuideline(
     throw new Error('Guideline document text is empty.');
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey.trim()}`,
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-oss-120b',
-      messages: [
-        {
-          role: 'system',
-          content: `You are BrandLint's Brand Governance Architect.
+  const response = await callGroqWithFallback(apiKey, {
+    model: 'openai/gpt-oss-120b',
+    messages: [
+      {
+        role: 'system',
+        content: `You are BrandLint's Brand Governance Architect.
 Analyze ONLY the uploaded brand guideline document provided by the user.
 CRITICAL RULES:
 - Never invent, assume, or substitute information from any other brand or template.
@@ -90,8 +116,7 @@ Return STRICT JSON with this exact schema:
       ],
       response_format: { type: 'json_object' },
       temperature: 0.1,
-    }),
-  });
+    });
 
   if (!response.ok) {
     const errText = await response.text().catch(() => response.statusText);
@@ -139,20 +164,55 @@ Return STRICT JSON with this exact schema:
     warnings.push('AI enhanced version could not be generated for this document.');
   }
 
-  const rawFacts = Array.isArray(parsed.extracted_facts) ? parsed.extracted_facts : [];
+  const rawFacts = Array.isArray(parsed.extracted_facts)
+    ? parsed.extracted_facts
+    : Array.isArray(parsed.facts)
+    ? parsed.facts
+    : [];
+
   const extractedFacts: ExtractedFactCandidate[] = rawFacts
-    .filter(
-      (f: any) =>
-        f &&
-        typeof f.claim === 'string' &&
-        f.claim.trim().length > 0
-    )
-    .map((f: any) => ({
-      fact_title: typeof f.fact_title === 'string' && f.fact_title.trim() ? f.fact_title.trim() : f.claim.trim().slice(0, 60),
-      fact_value: typeof f.fact_value === 'string' && f.fact_value.trim() ? f.fact_value.trim() : f.claim.trim(),
-      claim: f.claim.trim(),
-      category: typeof f.category === 'string' && f.category.trim() ? f.category.trim() : 'Document Fact',
-    }));
+    .map((f: any) => {
+      if (!f || typeof f !== 'object') return null;
+      const claimText =
+        typeof f.claim === 'string' && f.claim.trim().length > 0
+          ? f.claim.trim()
+          : typeof f.fact_value === 'string' && f.fact_value.trim().length > 0
+          ? f.fact_value.trim()
+          : typeof f.statement === 'string' && f.statement.trim().length > 0
+          ? f.statement.trim()
+          : typeof f.fact === 'string' && f.fact.trim().length > 0
+          ? f.fact.trim()
+          : typeof f.value === 'string' && f.value.trim().length > 0
+          ? f.value.trim()
+          : '';
+      if (!claimText) return null;
+
+      const factTitle =
+        typeof f.fact_title === 'string' && f.fact_title.trim().length > 0
+          ? f.fact_title.trim()
+          : typeof f.title === 'string' && f.title.trim().length > 0
+          ? f.title.trim()
+          : claimText.slice(0, 60);
+
+      const factValue =
+        typeof f.fact_value === 'string' && f.fact_value.trim().length > 0
+          ? f.fact_value.trim()
+          : claimText;
+
+      const category =
+        typeof f.category === 'string' && f.category.trim().length > 0
+          ? f.category.trim()
+          : 'Verified Fact';
+
+      return {
+        fact_title: factTitle,
+        fact_value: factValue,
+        claim: claimText,
+        category,
+        expires_at: typeof f.expires_at === 'string' ? f.expires_at : undefined,
+      };
+    })
+    .filter((f: any): f is ExtractedFactCandidate => Boolean(f));
 
   return {
     analysis: {

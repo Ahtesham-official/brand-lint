@@ -31,6 +31,7 @@ interface GuidelineDetailModalProps {
     message: string;
   } | null;
   onRetryExtract?: (guidelineId: string) => void;
+  initialTab?: 'comprehension' | 'comparison' | 'rules' | 'facts';
 }
 
 const NOT_SPECIFIED = 'Not specified in document';
@@ -46,8 +47,9 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
   extracting = false,
   extractionBanner = null,
   onRetryExtract,
+  initialTab = 'comprehension',
 }) => {
-  const [activeTab, setActiveTab] = useState<'comprehension' | 'comparison' | 'rules' | 'facts'>('comprehension');
+  const [activeTab, setActiveTab] = useState<'comprehension' | 'comparison' | 'rules' | 'facts'>(initialTab);
   const [selectingVersion, setSelectingVersion] = useState(false);
 
   if (!isOpen) return null;
@@ -99,7 +101,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.6)', padding: 24 }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', padding: 16 }}>
       <div
         className="animate-in"
         style={{
@@ -107,36 +109,39 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           border: '1px solid var(--rule)',
           width: '100%',
           maxWidth: 980,
+          height: 'min(90vh, 860px)',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.15)',
+          overflow: 'hidden',
+          borderRadius: 14,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.22)',
           fontFamily: 'var(--font-sans)',
           color: 'var(--ink)',
         }}
       >
-        {/* ── Modal Header ── */}
-        <div style={{ padding: '22px 28px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--paper)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 40, height: 40, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        {/* ── Modal Header (Fixed at top) ── */}
+        <div style={{ padding: '20px 28px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, background: 'var(--paper)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <FileText style={{ width: 18, height: 18, color: '#e0f2fe' }} />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 22, color: 'var(--ink)', margin: 0, letterSpacing: '-0.01em' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 20, color: 'var(--ink)', margin: 0, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                   {guideline.filename}
                 </h3>
-                <span className="badge" style={{ background: currentVersion === 'enhanced' ? '#e0f2fe' : 'var(--paper-mid)', color: currentVersion === 'enhanced' ? '#075985' : 'var(--ink-mid)', borderColor: currentVersion === 'enhanced' ? '#7dd3fc' : 'var(--rule)' }}>
+                <span className="badge" style={{ background: currentVersion === 'enhanced' ? '#e0f2fe' : 'var(--paper-mid)', color: currentVersion === 'enhanced' ? '#075985' : 'var(--ink-mid)', borderColor: currentVersion === 'enhanced' ? '#7dd3fc' : 'var(--rule)', flexShrink: 0 }}>
                   Active Version: {currentVersion.toUpperCase()}
                 </span>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 4, fontWeight: 300 }}>
+              <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 3, fontWeight: 300, margin: 0 }}>
                 AI Comprehension Analysis, Extracted Rulebook &amp; Fact Vault
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {guideline.status !== 'confirmed' && !isFailed && (
               <button
                 onClick={() => onConfirmGuideline(guideline.id)}
@@ -154,7 +159,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           </div>
         </div>
 
-        {/* ── Status / Error Banner ── */}
+        {/* ── Status / Error Banner (Fixed below header) ── */}
         {bannerToShow && (
           <div
             style={{
@@ -168,6 +173,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 12,
+              flexShrink: 0,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -198,8 +204,8 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           </div>
         )}
 
-        {/* ── Tab Navigation ── */}
-        <div style={{ padding: '0 28px', borderBottom: '1px solid var(--rule)', background: 'var(--white)', display: 'flex', gap: 24, fontSize: 13, overflowX: 'auto' }}>
+        {/* ── Tab Navigation (Fixed below banner) ── */}
+        <div style={{ padding: '0 28px', borderBottom: '1px solid var(--rule)', background: 'var(--white)', display: 'flex', gap: 24, fontSize: 13, overflowX: 'auto', flexShrink: 0 }}>
           <button
             onClick={() => setActiveTab('comprehension')}
             className="btn-plain"
@@ -282,62 +288,62 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
           </button>
         </div>
 
-        {/* ── Tab Content Body ── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* ── Tab Content Body (Scrolls smoothly inside fixed card without overlapping) ── */}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* TAB 1: AI Comprehension */}
           {activeTab === 'comprehension' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {isFailed ? (
-                <div style={{ padding: '28px', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b' }}>
+                <div style={{ padding: '24px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b' }}>
                   <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Extraction failed. Please retry.</div>
                   <div style={{ fontSize: 13, color: '#b91c1c' }}>
                     {guideline.extraction_error || 'The AI service could not process this document. No placeholder or fallback data is shown.'}
                   </div>
                 </div>
               ) : !analysis ? (
-                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', color: 'var(--ink-light)', fontSize: 13 }}>
+                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, color: 'var(--ink-light)', fontSize: 13 }}>
                   {extracting
                     ? 'Analysing brand guidelines...'
                     : 'No AI comprehension has been extracted for this document yet. Run extraction to analyse this document.'}
                 </div>
               ) : (
                 <>
-                  {/* Brand Name & Overview Card */}
-                  <div style={{ background: 'var(--paper)', border: '1px solid var(--rule)', padding: '22px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <span className="kicker-accent" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Sparkles style={{ width: 14, height: 14 }} /> Brand Overview — {analysis.brand_name || NOT_SPECIFIED}
+                  {/* Brand Overview & Summary Card */}
+                  <div style={{ background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, padding: '20px 22px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                      <span className="kicker-accent" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Sparkles style={{ width: 14, height: 14, flexShrink: 0 }} /> Brand Overview — {analysis.brand_name || NOT_SPECIFIED}
                       </span>
                       {analysis.strictness_level && (
-                        <span className="badge" style={{ background: '#e0f2fe', color: '#075985', borderColor: '#7dd3fc' }}>
+                        <span className="badge" style={{ background: '#e0f2fe', color: '#075985', borderColor: '#7dd3fc', flexShrink: 0 }}>
                           Strictness: {analysis.strictness_level}
                         </span>
                       )}
                     </div>
-                    <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7, margin: 0, fontWeight: 300 }}>
+                    <p style={{ fontSize: 14, color: 'var(--ink-soft)', lineHeight: 1.7, margin: 0, fontWeight: 300, wordBreak: 'break-word' }}>
                       {analysis.summary || NOT_SPECIFIED}
                     </p>
                   </div>
 
                   {/* Brand Identity */}
-                  <div style={{ padding: '18px 20px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
+                  <div style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8 }}>
                     <span className="kicker" style={{ marginBottom: 6 }}>Brand Identity</span>
-                    <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6 }}>
+                    <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0, lineHeight: 1.6, wordBreak: 'break-word' }}>
                       {analysis.brand_identity || NOT_SPECIFIED}
                     </p>
                   </div>
 
                   {/* Voice & Audience */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    <div style={{ padding: '18px 20px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+                    <div style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8 }}>
                       <span className="kicker" style={{ marginBottom: 6 }}>Detected Voice &amp; Tone</span>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0, wordBreak: 'break-word' }}>
                         {analysis.tone_profile || NOT_SPECIFIED}
                       </p>
                     </div>
-                    <div style={{ padding: '18px 20px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
+                    <div style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8 }}>
                       <span className="kicker" style={{ marginBottom: 6 }}>Target Audience</span>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)', margin: 0, wordBreak: 'break-word' }}>
                         {analysis.target_audience || NOT_SPECIFIED}
                       </p>
                     </div>
@@ -345,24 +351,24 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
 
                   {/* Core Constraints */}
                   <div>
-                    <div className="kicker" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className="kicker" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Target style={{ width: 13, height: 13, color: 'var(--accent)' }} />
                       Core Constraints Extracted from Document
                     </div>
                     {analysis.key_takeaways && analysis.key_takeaways.length > 0 ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
                         {analysis.key_takeaways.map((point, idx) => (
                           <div
                             key={idx}
-                            style={{ padding: '16px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'flex-start', gap: 10 }}
+                            style={{ padding: '14px 16px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, display: 'flex', alignItems: 'flex-start', gap: 10 }}
                           >
                             <Check style={{ width: 14, height: 14, color: '#15803d', marginTop: 2, flexShrink: 0 }} />
-                            <span style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6 }}>{point}</span>
+                            <span style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6, wordBreak: 'break-word' }}>{point}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink-light)' }}>
+                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink-light)' }}>
                         {NOT_SPECIFIED}
                       </div>
                     )}
@@ -377,14 +383,14 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                     {analysis.document_requirements && analysis.document_requirements.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {analysis.document_requirements.map((reqItem, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--white)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink)' }}>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink)' }}>
                             <Check style={{ width: 13, height: 13, color: 'var(--accent)', flexShrink: 0 }} />
-                            <span>{reqItem}</span>
+                            <span style={{ wordBreak: 'break-word' }}>{reqItem}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink-light)' }}>
+                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink-light)' }}>
                         {NOT_SPECIFIED}
                       </div>
                     )}
@@ -399,14 +405,14 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                     {analysis.recommended_actions && analysis.recommended_actions.length > 0 ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {analysis.recommended_actions.map((action, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink)' }}>
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink)' }}>
                             <ArrowRight style={{ width: 13, height: 13, color: 'var(--accent)', flexShrink: 0 }} />
-                            <span>{action}</span>
+                            <span style={{ wordBreak: 'break-word' }}>{action}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink-light)' }}>
+                      <div style={{ padding: '14px 18px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink-light)' }}>
                         {NOT_SPECIFIED}
                       </div>
                     )}
@@ -418,9 +424,9 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
 
           {/* TAB 2: Side-by-Side Comparison */}
           {activeTab === 'comparison' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Decision Bar */}
-              <div style={{ padding: '18px 24px', background: 'var(--paper)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+              <div style={{ padding: '16px 20px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
                 <div>
                   <span className="kicker-accent" style={{ marginBottom: 4 }}>Reviewer Selection</span>
                   <div style={{ fontSize: 13, color: 'var(--ink-light)' }}>
@@ -428,7 +434,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button
                     onClick={() => handleSelect('original')}
                     disabled={selectingVersion}
@@ -464,20 +470,20 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
               </div>
 
               {/* Side-by-side columns */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
                 {/* Original */}
-                <div style={{ border: '1px solid var(--rule)', background: 'var(--white)' }}>
+                <div style={{ border: '1px solid var(--rule)', borderRadius: 8, background: 'var(--white)', overflow: 'hidden' }}>
                   <div style={{ padding: '12px 18px', background: 'var(--paper)', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>Original Uploaded Text</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-faint)' }}>{guideline.raw_text.length} chars</span>
                   </div>
-                  <pre style={{ padding: '18px', margin: 0, fontFamily: 'var(--font-mono)', fontSize: 11, lineHeight: 1.6, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', maxHeight: '48vh', overflowY: 'auto' }}>
+                  <pre style={{ padding: '16px 18px', margin: 0, fontFamily: 'var(--font-mono)', fontSize: 11, lineHeight: 1.6, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', maxHeight: '45vh', overflowY: 'auto' }}>
                     {guideline.raw_text}
                   </pre>
                 </div>
 
                 {/* AI Enhanced */}
-                <div style={{ border: '1px solid var(--rule)', background: 'var(--white)' }}>
+                <div style={{ border: '1px solid var(--rule)', borderRadius: 8, background: 'var(--white)', overflow: 'hidden' }}>
                   <div style={{ padding: '12px 18px', background: '#e0f2fe', borderBottom: '1px solid #7dd3fc', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: '#075985', display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Sparkles style={{ width: 13, height: 13 }} /> AI Enhanced Version
@@ -486,7 +492,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                       {enhancedText ? 'Document-Derived' : 'Pending'}
                     </span>
                   </div>
-                  <div style={{ padding: '18px', fontSize: 12, lineHeight: 1.7, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', maxHeight: '48vh', overflowY: 'auto' }}>
+                  <div style={{ padding: '16px 18px', fontSize: 12, lineHeight: 1.7, color: 'var(--ink-soft)', whiteSpace: 'pre-wrap', maxHeight: '45vh', overflowY: 'auto' }}>
                     {enhancedText || 'AI enhanced version has not been generated for this document yet.'}
                   </div>
                 </div>
@@ -496,21 +502,21 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
 
           {/* TAB 3: Rules List */}
           {activeTab === 'rules' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="kicker">
                 {associatedRules.length} rules extracted from this document
               </div>
 
               {associatedRules.length === 0 ? (
-                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink-light)' }}>
+                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink-light)' }}>
                   No rules or facts were identified.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {associatedRules.map((rule) => (
-                    <div key={rule.id} style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 12 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{rule.title}</span>
+                    <div key={rule.id} style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 6, gap: 10 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>{rule.title}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                           {rule.enforcement_type && (
                             <span className="badge" style={{ background: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' }}>
@@ -525,8 +531,8 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                           </span>
                         </div>
                       </div>
-                      <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '0 0 10px', lineHeight: 1.6 }}>{rule.description}</p>
-                      <div style={{ background: 'var(--paper)', padding: '10px 14px', borderLeft: '3px solid var(--accent)', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink)' }}>
+                      <p style={{ fontSize: 13, color: 'var(--ink-light)', margin: '0 0 10px', lineHeight: 1.6, wordBreak: 'break-word' }}>{rule.description}</p>
+                      <div style={{ background: 'var(--paper)', padding: '10px 14px', borderLeft: '3px solid var(--accent)', borderRadius: '0 6px 6px 0', fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink)', wordBreak: 'break-word' }}>
                         &ldquo;{rule.source_citation || NOT_SPECIFIED}&rdquo;
                       </div>
                     </div>
@@ -538,25 +544,25 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
 
           {/* TAB 4: Fact Vault */}
           {activeTab === 'facts' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="kicker">
                 {associatedFacts.length} approved facts extracted from this document
               </div>
 
               {associatedFacts.length === 0 ? (
-                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', fontSize: 13, color: 'var(--ink-light)' }}>
+                <div style={{ padding: '28px', background: 'var(--paper)', border: '1px solid var(--rule)', borderRadius: 8, fontSize: 13, color: 'var(--ink-light)' }}>
                   No approved facts have been extracted from this document yet.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {associatedFacts.map((fact) => (
-                    <div key={fact.id} style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 12 }}>
-                        <div>
+                    <div key={fact.id} style={{ padding: '16px 20px', background: 'var(--white)', border: '1px solid var(--rule)', borderRadius: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 6, gap: 10 }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
                           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-faint)', marginRight: 8 }}>
                             {fact.id}
                           </span>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)', wordBreak: 'break-word' }}>
                             {fact.fact_title || fact.claim}
                           </span>
                         </div>
@@ -569,7 +575,7 @@ export const GuidelineDetailModal: React.FC<GuidelineDetailModalProps> = ({
                           </span>
                         </div>
                       </div>
-                      <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.6 }}>
+                      <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: '0 0 8px', lineHeight: 1.6, wordBreak: 'break-word' }}>
                         {fact.fact_value || fact.claim}
                       </p>
                       <div style={{ fontSize: 11, color: 'var(--ink-faint)', fontFamily: 'var(--font-mono)' }}>

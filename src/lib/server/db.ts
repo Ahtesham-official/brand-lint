@@ -834,18 +834,21 @@ class ServerDatabase {
     orgId?: string
   ): Promise<Fact[]> {
     const defaultExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    const targetOrg = orgId || 'org-apex-global';
     const newFacts: Fact[] = candidates.map((c, idx) => ({
       id: `fact-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-      brand_id: orgId || 'brand-apex-01',
-      ...(orgId ? { org_id: orgId } : {}),
+      brand_id: targetOrg,
+      org_id: targetOrg,
       source_guideline_id: guidelineId,
       fact_title: c.fact_title,
       fact_value: c.fact_value,
-      claim: c.claim,
-      category: c.category,
+      claim: c.claim || c.fact_value || c.fact_title,
+      category: c.category || 'Verified Fact',
       source_document: filename,
       expires_at: c.expires_at || defaultExpiry,
       status: 'active',
+      created_at: now,
     }));
 
     if (isMongoConfigured()) {

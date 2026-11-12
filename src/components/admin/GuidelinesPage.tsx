@@ -53,6 +53,7 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [selectedGuideline, setSelected] = useState<Guideline | null>(null);
+  const [modalInitialTab, setModalInitialTab] = useState<'comprehension' | 'comparison' | 'rules' | 'facts'>('rules');
   const [filename, setFilename] = useState('');
   const [rawText, setRawText] = useState('');
   const [extractingId, setExtractingId] = useState<string | null>(null);
@@ -64,10 +65,13 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
 
   const handleSubmit = async () => {
     if (!filename.trim() || !rawText.trim()) return;
-    await onAddGuideline(filename.trim(), rawText.trim());
+    const added = await onAddGuideline(filename.trim(), rawText.trim());
     setFilename('');
     setRawText('');
     setShowModal(false);
+    if (added && (added as any).id) {
+      handleExtract((added as any).id);
+    }
   };
 
   const handleExtract = async (id: string, e?: React.MouseEvent) => {
@@ -251,7 +255,10 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
             return (
               <div
                 key={gl.id}
-                onClick={() => setSelected(gl)}
+                onClick={() => {
+                  setSelected(gl);
+                  setModalInitialTab(count > 0 ? 'rules' : 'comprehension');
+                }}
                 className={`saas-card saas-card-interactive cursor-pointer p-5 ${
                   !isEnabled ? 'opacity-65' : ''
                 }`}
@@ -439,6 +446,7 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
             extracting={extractingId === liveGuideline.id}
             extractionBanner={extractionStatusMap[liveGuideline.id] || null}
             onRetryExtract={(id) => handleExtract(id)}
+            initialTab={modalInitialTab}
           />
         );
       })()}
