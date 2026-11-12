@@ -75,6 +75,33 @@ export const VideoAuditReport: React.FC<VideoAuditReportProps> = ({
 
   const isReviewer = currentUser.role === 'reviewer' || currentUser.role === 'admin';
 
+  /**
+   * Parse `ocr_text` field (format: "[@Xs Whisper Audio] "..."") into transcript segments
+   * as a fallback when video_metadata.transcript is not available.
+   */
+  const parsedOcrTranscript = React.useMemo(() => {
+    const ocrText = submission.ocr_text || '';
+    if (!ocrText) return [];
+    const lines = ocrText.split('\n').filter(Boolean);
+    const segments: { timestamp: number; text: string; ocr: string }[] = [];
+    for (const line of lines) {
+      const timeMatch = line.match(/\[@([\d.]+)s/);
+      const time = timeMatch ? parseFloat(timeMatch[1]) : 0;
+      const isAudio = line.includes('Whisper Audio');
+      const isOcr = line.includes('Frame OCR');
+      const textMatch = line.match(/"([^"]+)"/) || line.match(/"([^"]+)"/);
+      const text = textMatch ? textMatch[1] : '';
+      if (text && (isAudio || isOcr)) {
+        segments.push({
+          timestamp: time,
+          text: isAudio ? text : '',
+          ocr: isOcr ? text : '',
+        });
+      }
+    }
+    return segments;
+  }, [submission.ocr_text]);
+
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
       {/* ── Header Bar ── */}
@@ -186,9 +213,16 @@ export const VideoAuditReport: React.FC<VideoAuditReportProps> = ({
               </span>
             </div>
 
-            {submission.video_metadata?.transcript && submission.video_metadata.transcript.length > 0 ? (
+            {(() => {
+              const displaySegments =
+                (submission.video_metadata?.transcript && submission.video_metadata.transcript.length > 0)
+                  ? submission.video_metadata.transcript
+                  : parsedOcrTranscript.length > 0
+                  ? parsedOcrTranscript
+                  : null;
+              return displaySegments ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {submission.video_metadata.transcript.map((seg, idx) => (
+                {displaySegments.map((seg, idx) => (
                   <div
                     key={idx}
                     style={{
@@ -247,21 +281,7 @@ export const VideoAuditReport: React.FC<VideoAuditReportProps> = ({
                   </div>
                 ))}
               </div>
-            ) : submission.ocr_text ? (
-              <div style={{
-                background: 'var(--paper)',
-                border: '1px solid var(--rule)',
-                borderRadius: 'var(--radius-btn)',
-                padding: '12px 14px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                color: 'var(--ink-soft)',
-                whiteSpace: 'pre-wrap',
-                lineHeight: 1.6,
-              }}>
-                {submission.ocr_text}
-              </div>
-            ) : (
+              ) : (
               <div style={{
                 background: 'var(--paper)',
                 border: '1px dashed var(--rule-dark)',
@@ -273,7 +293,8 @@ export const VideoAuditReport: React.FC<VideoAuditReportProps> = ({
               }}>
                 No text or speech detected in keyframes.
               </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Reviewer Action Bar (if Reviewer) */}
