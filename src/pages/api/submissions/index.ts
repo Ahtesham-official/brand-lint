@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { serverDb } from '@/lib/server/db';
-import { runCheckEngineAsync } from '@/lib/checkEngine';
-import { analyzeVideoCompliance, VideoFrameAnalysisInput } from '@/lib/videoEngine';
+import { runComplianceAgentBrain } from '@/lib/agent';
 import { extractFromVideoAsync } from './extract-video';
 
 export const config = {
@@ -46,47 +45,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const brand = await serverDb.getBrand();
     const facts = await serverDb.getFacts();
 
-    // 3. For video, audit is strictly based on extracted frames (OCR/visual) and audio (Whisper).
-    // For static posters, use text check engine on caption + poster graphic.
-    let analysis = {
-      issues: [] as any[],
-      riskScore: 0,
-      riskLevel: 'Low' as 'Low' | 'Moderate' | 'High' | 'Critical',
-      engineUsed: 'groq_ai' as 'groq_ai' | 'deterministic_fallback',
-      summary: {
-        totalIssues: 0,
-        highSeverity: 0,
-        medSeverity: 0,
-        lowSeverity: 0,
-        autoFixableCount: 0,
-      },
-    };
-
-    if (!isVideo) {
-      analysis = await runCheckEngineAsync({
-        submissionId: submission.id,
-        caption: caption || '',
-        imageUrl: submission.image_url,
-        ocrText: ocr_text || '',
-        brand,
-        rules: activeRules,
-        facts,
-      });
-    }
-
-    // 3b. If video submission, run AI-powered multi-modal video extraction + compliance audit
-    let videoViolations: any[] = [];
+    // 3. Run Agentic AI Brain (StateGraph with modular extraction & audit tools)
     let extractedVideoData: Awaited<ReturnType<typeof extractFromVideoAsync>> | null = null;
+    let extractedFrames: any[] = [];
 
     if (isVideo) {
-      // Step 1: AI extraction — Groq generates realistic per-frame OCR + Whisper audio transcript
       extractedVideoData = await extractFromVideoAsync(
         video_url || '',
         submission.title,
-        ocr_text  // pass any user-supplied text as extra context hint
+        ocr_text
       );
-
-      const extractedFrames: VideoFrameAnalysisInput[] = extractedVideoData.frames.map((f) => ({
+      extractedFrames = extractedVideoData.frames.map((f) => ({
         timestamp: f.timestamp,
         frameIndex: f.frameIndex,
         ocrText: f.ocrText,
@@ -94,19 +63,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         detectedColors: f.detectedColors || [brand.palette.primary || '#1E3A8A'],
         isBackground: f.isBackground,
       }));
+    }
 
-      // Step 2: Send extracted frames AND the full transcript to the AI compliance engine
-      videoViolations = await analyzeVideoCompliance({
-        videoDuration: 15,
-        videoTitle: submission.title,
-        frames: extractedFrames,
-        fullTranscript: extractedVideoData.audio_summary,
-        brand,
-        rules: activeRules,
-        facts,
-      });
+    const agentState = await runComplianceAgentBrain({
+      inputMedia: {
+        submissionId: submission.id,
+        mediaType: isVideo ? 'video' : 'image',
+        imageUrl: submission.image_url,
+        videoUrl: submission.video_url,
+        caption: isVideo ? '' : (caption || ''),
+        ocrText: ocr_text || '',
+      },
+      brand,
+      rules: activeRules,
+      facts,
+      frames: extractedFrames,
+      audioTranscript: extractedVideoData ? extractedVideoData.audio_summary : undefined,
+    });
 
-      // Synchronize video timeline violations into the issues list
+    const analysis = {
+      issues: agentState.issues,
+      riskScore: agentState.decisionSummary.riskScore,
+      riskLevel: agentState.decisionSummary.riskLevel,
+      engineUsed: agentState.decisionSummary.engineUsed,
+      summary: {
+        totalIssues: agentState.decisionSummary.totalViolations,
+        highSeverity: agentState.decisionSummary.highSeverityCount,
+        medSeverity: agentState.decisionSummary.medSeverityCount,
+        lowSeverity: agentState.decisionSummary.lowSeverityCount,
+        autoFixableCount: agentState.decisionSummary.autoFixableCount,
+      },
+    };
+
+    const videoViolations = agentState.videoViolations;
+
+    // Synchronize video timeline violations into the issues list for unified reporting
+    if (isVideo && videoViolations.length > 0) {
       videoViolations.forEach((v) => {
         analysis.issues.push({
           id: `iss-v-${v.id}`,
@@ -127,15 +119,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: 'open',
         });
       });
-
-      if (videoViolations.length > 0) {
-        const hasHigh = videoViolations.some((v) => v.severity === 'high');
-        analysis.riskScore = hasHigh ? 85 : 45;
-        analysis.riskLevel = hasHigh ? 'High' : 'Moderate';
-      } else {
-        analysis.riskScore = 0;
-        analysis.riskLevel = 'Low';
-      }
     }
 
     // 4. Build transcript segments from extraction output for display in VideoAuditReport

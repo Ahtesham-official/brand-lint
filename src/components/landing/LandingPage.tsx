@@ -230,12 +230,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </nav>
           )}
 
-          {onToggleAppMode && (
-            <div className="hidden sm:flex items-center">
-              <ModeToggle mode={appMode} onToggle={onToggleAppMode} />
-            </div>
-          )}
-
           <div className="flex items-center gap-3">
             {view === 'landing' && (
               <motion.button

@@ -117,16 +117,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </button>
 
-        {onToggleAppMode && (
-          <div className="mt-3">
-            <ModeToggle
-              mode={appMode}
-              onToggle={onToggleAppMode}
-              style={{ width: '100%', justifyContent: 'center' }}
-            />
-          </div>
-        )}
-
         <div className="mt-3 flex items-center justify-between gap-2">
           {onExitOrg && (
             <button
