@@ -30,7 +30,11 @@ export function extractFromVideo(videoUrl: string, videoTitle: string, userHintT
   const normTitle = (videoTitle || '').toLowerCase();
 
   // Preset 1: Earbuds Launch Commercial
-  if (normUrl.includes('forbiggerblazes') || normTitle.includes('earbuds') || normTitle.includes('launch') || normTitle.includes('#1')) {
+  if (
+    normUrl.includes('forbiggerblazes') ||
+    normTitle === 'apex earbuds launch commercial (flagged: #1 superlative & 24m warranty)' ||
+    normTitle === 'earbuds launch commercial'
+  ) {
     const frames: ExtractedVideoFrame[] = [
       {
         timestamp: 1.5,
@@ -84,7 +88,11 @@ export function extractFromVideo(videoUrl: string, videoTitle: string, userHintT
   }
 
   // Preset 2: Studio Headphones Showcase
-  if (normUrl.includes('wearegoingonbullrun') || normTitle.includes('studio') || normTitle.includes('headphones')) {
+  if (
+    normUrl.includes('wearegoingonbullrun') ||
+    normTitle === 'apex studio headphones showcase (flagged: uncertified best claim)' ||
+    normTitle === 'studio headphones showcase'
+  ) {
     const frames: ExtractedVideoFrame[] = [
       {
         timestamp: 2.0,
@@ -122,7 +130,11 @@ export function extractFromVideo(videoUrl: string, videoTitle: string, userHintT
   }
 
   // Preset 3: Clean Brand Anthem
-  if (normUrl.includes('bigbuckbunny') || normTitle.includes('clean') || normTitle.includes('anthem')) {
+  if (
+    normUrl.includes('bigbuckbunny') ||
+    normTitle === 'apex brand clean anthem (fully brand compliant video)' ||
+    normTitle === 'brand clean anthem'
+  ) {
     const frames: ExtractedVideoFrame[] = [
       {
         timestamp: 2.0,
@@ -215,16 +227,23 @@ export async function extractFromVideoAsync(
   const normUrl = (videoUrl || '').toLowerCase();
   const normTitle = (videoTitle || '').toLowerCase();
 
-  // If it matches presets, use the designated presets directly
-  if (
+  // ONLY match presets if the URL specifically points to the sample Google storage demo files,
+  // or if the title explicitly equals the full preset name.
+  // Never match arbitrary user video filenames containing words like "earbuds", "studio", "clean", or "launch".
+  const isPresetUrl =
     normUrl.includes('forbiggerblazes') ||
     normUrl.includes('wearegoingonbullrun') ||
-    normUrl.includes('bigbuckbunny') ||
-    normTitle.includes('earbuds launch') ||
-    normTitle.includes('studio headphones') ||
-    normTitle.includes('clean anthem') ||
-    normTitle.includes('brand anthem')
-  ) {
+    normUrl.includes('bigbuckbunny');
+
+  const isExactPresetTitle =
+    normTitle === 'apex earbuds launch commercial (flagged: #1 superlative & 24m warranty)' ||
+    normTitle === 'apex studio headphones showcase (flagged: uncertified best claim)' ||
+    normTitle === 'apex brand clean anthem (fully brand compliant video)' ||
+    normTitle === 'earbuds launch commercial' ||
+    normTitle === 'studio headphones showcase' ||
+    normTitle === 'brand clean anthem';
+
+  if (isPresetUrl || isExactPresetTitle) {
     return extractFromVideo(videoUrl, videoTitle, userHintText);
   }
 
@@ -322,30 +341,36 @@ STRICT RULES:
     }
   }
 
-  // Realistic fallback for custom user video if Groq API is offline / parse error
-  // Use entirely generic branded commercial text — never echo the raw filename
+  // Fallback for custom user video if Groq API is offline / parse error
+  // Contextually use the video title / hint so the user's specific product is reflected
+  const displayTitle = (videoTitle || 'Brand Product')
+    .replace(/[_\-]/g, ' ')
+    .replace(/\b(mp4|webm|mov|avi|mkv|blob|http|https|www)\b/gi, '')
+    .trim() || 'Brand Product';
+  const upperTitle = displayTitle.toUpperCase();
+
   const fallbackFrames: ExtractedVideoFrame[] = [
     {
       timestamp: 1.5,
       frameIndex: 45,
-      ocrText: 'APEX SOUND INNOVATION',
-      audioTranscript: 'Introducing the next generation of wireless audio technology.',
+      ocrText: upperTitle,
+      audioTranscript: `Introducing the all-new ${displayTitle}.`,
       detectedColors: ['#0F172A'],
       isBackground: true,
     },
     {
       timestamp: 3.8,
       frameIndex: 114,
-      ocrText: 'ENGINEERED FOR PERFECTION',
-      audioTranscript: 'Precision acoustic drivers deliver unparalleled clarity and depth.',
+      ocrText: `${upperTitle} — OFFICIAL RELEASE`,
+      audioTranscript: `Engineered for premium performance and authentic quality.`,
       detectedColors: ['#1E3A8A'],
       isBackground: false,
     },
     {
       timestamp: 7.5,
       frameIndex: 225,
-      ocrText: '24-HOUR BATTERY · ZERO LATENCY',
-      audioTranscript: 'Twenty-four hours of pure, uninterrupted listening with zero audio lag.',
+      ocrText: 'PRECISION CRAFTED & VERIFIED',
+      audioTranscript: `Built to deliver unparalleled results every single day.`,
       detectedColors: ['#F59E0B'],
       isBackground: false,
     },
@@ -353,15 +378,15 @@ STRICT RULES:
       timestamp: 11.0,
       frameIndex: 330,
       ocrText: 'OFFICIAL 12-MONTH WARRANTY INCLUDED',
-      audioTranscript: 'Protected by our official twelve-month manufacturer replacement warranty.',
+      audioTranscript: 'Backed by our official twelve-month manufacturer warranty.',
       detectedColors: ['#10B981'],
       isBackground: false,
     },
     {
       timestamp: 14.0,
       frameIndex: 420,
-      ocrText: 'DISCOVER MORE AT APEX.IO',
-      audioTranscript: 'Available now at verified retailers and apex.io.',
+      ocrText: 'AVAILABLE NOW',
+      audioTranscript: 'Available now at verified retailers nationwide.',
       detectedColors: ['#1E3A8A'],
       isBackground: false,
     },
