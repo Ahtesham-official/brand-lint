@@ -167,40 +167,76 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         )}
 
-        {/* Top-right actions depending on current view */}
-        {view === 'select-profile' && (
-          <button
-            onClick={() => setView('landing')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'transparent', color: 'var(--ink-mid)', border: '1px solid var(--rule)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
-          >
-            <ArrowLeft style={{ width: 14, height: 14 }} /> Overview
-          </button>
-        )}
-
-        {view === 'select-workspace' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'var(--paper)', border: '1px solid var(--rule)' }}>
-              <div style={{ width: 22, height: 22, background: 'var(--paper-mid)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, overflow: 'hidden' }}>
-                {currentUser.avatar ? (
-                  <img src={currentUser.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  currentUser.name[0]
-                )}
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{currentUser.name}</span>
-              <span className="badge" style={{ fontSize: 9, padding: '1px 5px', textTransform: 'uppercase' }}>{currentUser.role}</span>
-            </div>
+        {/* Right side actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {appMode === 'actual' && (
             <button
               onClick={() => {
-                setDeletedBanner(null);
-                setView('select-profile');
+                if (onOpenAuth) onOpenAuth();
               }}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'transparent', color: 'var(--ink-mid)', border: '1px solid var(--rule)', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '7px 16px',
+                background: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
             >
-              Switch Persona
+              <ShieldCheck style={{ width: 14, height: 14 }} /> Sign In / Register
             </button>
-          </div>
-        )}
+          )}
+
+          {view === 'select-profile' && (
+            <button
+              onClick={() => setView('landing')}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: 'transparent', color: 'var(--ink-mid)', border: '1px solid var(--rule)', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}
+            >
+              <ArrowLeft style={{ width: 14, height: 14 }} /> Overview
+            </button>
+          )}
+
+          {view === 'select-workspace' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: 'var(--paper)', border: '1px solid var(--rule)' }}>
+                <div style={{ width: 22, height: 22, background: 'var(--paper-mid)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, overflow: 'hidden' }}>
+                  {currentUser.avatar ? (
+                    <img src={currentUser.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    currentUser.name[0]
+                  )}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600 }}>{currentUser.name}</span>
+                <span className="badge" style={{ fontSize: 9, padding: '1px 5px', textTransform: 'uppercase' }}>{currentUser.role}</span>
+              </div>
+              {appMode === 'demo' ? (
+                <button
+                  onClick={() => {
+                    setDeletedBanner(null);
+                    setView('select-profile');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'transparent', color: 'var(--ink-mid)', border: '1px solid var(--rule)', cursor: 'pointer', fontSize: 12, fontWeight: 500 }}
+                >
+                  Switch Persona
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (onOpenAuth) onOpenAuth();
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', background: 'transparent', color: '#2563eb', border: '1px solid #bfdbfe', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                >
+                  Switch Account
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <main className="landing-stage">
@@ -279,27 +315,71 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 Manage brand guidelines, enforce compliance rules, and judge creative submissions — all in one governed workspace.
               </p>
 
-              {/* ONLY ONE PROMINENT CTA BUTTON */}
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <button
-                  onClick={() => setView('select-profile')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '14px 38px',
-                    background: 'var(--btn-primary)',
-                    color: 'var(--white)',
-                    border: '1px solid var(--rule-dark)',
-                    cursor: 'pointer',
-                    fontSize: 16,
-                    fontWeight: 700,
-                    boxShadow: '3px 3px 0px var(--btn-shadow)',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  Take Me to Demo <ArrowRight style={{ width: 18, height: 18 }} />
-                </button>
+              {/* CTA BUTTONS - Dynamic based on appMode */}
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 14, flexWrap: 'wrap' }}>
+                {appMode === 'demo' ? (
+                  <button
+                    onClick={() => setView('select-profile')}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '14px 38px',
+                      background: '#f59e0b',
+                      color: '#78350f',
+                      border: '1px solid #d97706',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      fontWeight: 700,
+                      boxShadow: '3px 3px 0px rgba(0,0,0,0.15)',
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    <Sparkles style={{ width: 18, height: 18 }} />
+                    Take Me to Fast Demo <ArrowRight style={{ width: 18, height: 18 }} />
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => {
+                        if (onOpenAuth) onOpenAuth();
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '14px 32px',
+                        background: '#2563eb',
+                        color: '#ffffff',
+                        border: '1px solid #1d4ed8',
+                        cursor: 'pointer',
+                        fontSize: 15,
+                        fontWeight: 700,
+                        boxShadow: '3px 3px 0px rgba(0,0,0,0.15)',
+                      }}
+                    >
+                      <ShieldCheck style={{ width: 18, height: 18 }} /> Sign In to Actual Project
+                    </button>
+
+                    <button
+                      onClick={() => setView('select-workspace')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '14px 28px',
+                        background: 'transparent',
+                        color: 'var(--ink)',
+                        border: '1px solid var(--rule)',
+                        cursor: 'pointer',
+                        fontSize: 15,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Browse Workspaces <ArrowRight style={{ width: 16, height: 16 }} />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 

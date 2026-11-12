@@ -26,6 +26,7 @@ import { ReviewPage } from '@/components/reviewer/ReviewPage';
 import { AuditPage } from '@/components/reviewer/AuditPage';
 import { DemoGuideModal } from '@/components/demo/DemoGuideModal';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { ActualAuthModal } from '@/components/auth/ActualAuthModal';
 import { GroqKeyModal } from '@/components/demo/GroqKeyModal';
 import { LandingPage } from '@/components/landing/LandingPage';
 import { DEMO_SUBMISSION_INITIAL, SEEDED_USERS } from '@/data/seedData';
@@ -60,6 +61,7 @@ export default function Home() {
   const [isDemoGuideOpen, setIsDemoGuideOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
+  const [isActualAuthOpen, setIsActualAuthOpen] = useState(false);
   const [groqActive, setGroqActive] = useState(false);
   const [appMode, setAppMode] = useState<AppMode>('demo');
 
@@ -78,6 +80,14 @@ export default function Home() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('brandlint_app_mode', mode);
     }
+  };
+
+  const handleActualAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('brandlint_actual_user', JSON.stringify(user));
+    }
+    setIsActualAuthOpen(false);
   };
 
   // Sync activeOrgId from URL query param (?org=...)
@@ -168,11 +178,22 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true);
     if (typeof window !== 'undefined') {
-      const savedUserId = localStorage.getItem('brandlint_demo_user_id');
-      if (savedUserId) {
-        const found = SEEDED_USERS.find((u) => u.id === savedUserId);
-        if (found) {
-          setCurrentUser(found);
+      const savedMode = localStorage.getItem('brandlint_app_mode') as AppMode | null;
+      if (savedMode === 'actual') {
+        // Restore Actual Project session
+        const savedActual = localStorage.getItem('brandlint_actual_user');
+        if (savedActual) {
+          try {
+            const parsed = JSON.parse(savedActual);
+            if (parsed && parsed.id) setCurrentUser(parsed);
+          } catch {}
+        }
+      } else {
+        // Restore demo persona
+        const savedUserId = localStorage.getItem('brandlint_demo_user_id');
+        if (savedUserId) {
+          const found = SEEDED_USERS.find((u) => u.id === savedUserId);
+          if (found) setCurrentUser(found);
         }
       }
     }
@@ -650,6 +671,12 @@ export default function Home() {
           onEnterOrg={handleEnterOrg}
           appMode={appMode}
           onToggleAppMode={handleToggleAppMode}
+          onOpenAuth={() => setIsActualAuthOpen(true)}
+        />
+        <ActualAuthModal
+          isOpen={isActualAuthOpen}
+          onClose={() => setIsActualAuthOpen(false)}
+          onSuccess={handleActualAuthSuccess}
         />
       </div>
     );
@@ -705,6 +732,13 @@ export default function Home() {
         isOpen={isGroqModalOpen}
         onClose={() => setIsGroqModalOpen(false)}
         onSaved={checkGroqStatus}
+      />
+
+      {/* Actual Project Auth Modal */}
+      <ActualAuthModal
+        isOpen={isActualAuthOpen}
+        onClose={() => setIsActualAuthOpen(false)}
+        onSuccess={handleActualAuthSuccess}
       />
     </div>
   );

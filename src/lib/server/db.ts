@@ -109,7 +109,7 @@ class ServerDatabase {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-    } catch {}
+    } catch { }
   }
 
   private readDbLocal(): DatabaseSchema {
@@ -122,7 +122,7 @@ class ServerDatabase {
         this.inMemoryData = JSON.parse(raw);
         return this.inMemoryData!;
       }
-    } catch {}
+    } catch { }
 
     this.inMemoryData = getDefaultData();
     this.writeDbLocal(this.inMemoryData);
@@ -134,7 +134,7 @@ class ServerDatabase {
     try {
       this.ensureDataDir();
       fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    } catch {}
+    } catch { }
   }
 
   /**
@@ -1007,8 +1007,8 @@ class ServerDatabase {
       sub.risk_score = Math.min(100, Math.round(newRaw));
       sub.risk_level =
         sub.risk_score > 75 ? 'Critical' :
-        sub.risk_score > 50 ? 'High' :
-        sub.risk_score > 25 ? 'Moderate' : 'Low';
+          sub.risk_score > 50 ? 'High' :
+            sub.risk_score > 25 ? 'Moderate' : 'Low';
 
       await this.updateSubmission(sub.id, {
         caption: sub.caption,

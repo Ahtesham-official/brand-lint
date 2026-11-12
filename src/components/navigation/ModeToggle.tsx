@@ -73,3 +73,4 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({ mode, onToggle, style })
     </div>
   );
 };
+
