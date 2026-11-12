@@ -100,7 +100,8 @@ def analyze_video(video_path, groq_api_key=None):
     duration = frame_count / fps if fps > 0 else 15.0
     
     # 1. Extract audio & transcribe
-    temp_wav = os.path.join(os.path.dirname(os.path.abspath(video_path)), '_temp_extracted.wav')
+    rand_suffix = os.urandom(4).hex()
+    temp_wav = os.path.join(os.path.dirname(os.path.abspath(video_path)), f'_temp_extracted_{rand_suffix}.wav')
     has_audio = False
     try:
         has_audio = extract_audio_to_wav(container, temp_wav)

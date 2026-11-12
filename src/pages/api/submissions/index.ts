@@ -53,7 +53,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       extractedVideoData = await extractFromVideoAsync(
         video_url || '',
         submission.title,
-        ocr_text
+        ocr_text,
+        undefined,
+        submission.title
       );
       extractedFrames = extractedVideoData.frames.map((f) => ({
         timestamp: f.timestamp,
@@ -123,13 +125,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // 4. Build transcript segments from extraction output for display in VideoAuditReport
     const videoTranscript = extractedVideoData
-      ? extractedVideoData.frames
-          .filter((f) => f.ocrText || f.audioTranscript)
-          .map((f) => ({
-            timestamp: f.timestamp,
-            text: f.audioTranscript || '',
-            ocr: f.ocrText || '',
+      ? extractedVideoData.segments && extractedVideoData.segments.length > 0
+        ? extractedVideoData.segments.map((s) => ({
+            timestamp: s.start,
+            text: s.text,
+            ocr: '',
           }))
+        : extractedVideoData.frames
+            .filter((f) => f.ocrText || f.audioTranscript)
+            .map((f) => ({
+              timestamp: f.timestamp,
+              text: f.audioTranscript || '',
+              ocr: f.ocrText || '',
+            }))
       : undefined;
 
     // 5. Build combined OCR+Audio summary string saved on the submission for quick display

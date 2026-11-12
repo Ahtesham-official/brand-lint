@@ -231,16 +231,24 @@ class ApiClient {
     );
   }
 
-  public async extractVideo(videoUrl: string, videoTitle: string, userHintText?: string): Promise<{
+  public async extractVideo(
+    videoUrl: string,
+    videoTitle: string,
+    userHintText?: string,
+    videoBase64?: string,
+    fileName?: string
+  ): Promise<{
     success: boolean;
     ocr_summary: string;
     audio_summary: string;
+    transcript?: string;
+    segments?: any[];
     frames: any[];
     metadata: { duration: number; fps: number; resolution: string };
   }> {
     return this.request('/api/submissions/extract-video', {
       method: 'POST',
-      body: JSON.stringify({ videoUrl, videoTitle, userHintText }),
+      body: JSON.stringify({ videoUrl, videoTitle, userHintText, videoBase64, fileName }),
     });
   }
 

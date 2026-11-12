@@ -68,3 +68,4 @@ export const ocrExtractionTool: AgentTool<OcrExtractionInput, OcrExtractionOutpu
     };
   },
 };
+

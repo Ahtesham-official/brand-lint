@@ -114,3 +114,4 @@ export const visualColorTool: AgentTool<VisualColorInput, VisualColorOutput> = {
     };
   },
 };
+
