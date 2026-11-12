@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   ChevronDown,
@@ -9,9 +10,19 @@ import {
   Quote,
   Database,
   Send,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
+  Loader2,
+  ScanText,
 } from 'lucide-react';
 import type { Submission, Issue, Brand, User, Severity } from '@/types';
 import { FixDiffModal } from './FixDiffModal';
+import {
+  AnimatedCounter,
+  AnimatedProgressBar,
+  EASE_OUT_EXPO,
+} from '@/components/motion/MotionPrimitives';
 
 interface CitedIssueReportProps {
   submission: Submission;
@@ -26,20 +37,30 @@ interface CitedIssueReportProps {
     decision: 'approve' | 'request_changes',
     comment: string
   ) => void;
+  onRecalculate?: (submissionId: string) => Promise<void>;
 }
 
-const SEVERITY_BADGE: Record<Severity, { bg: string; color: string; border: string }> = {
-  high: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5' },
-  med:  { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
-  low:  { bg: '#f0fdf4', color: '#15803d', border: '#86efac' },
+const SEVERITY_STYLE: Record<Severity, { badge: string; border: string; label: string }> = {
+  high: {
+    badge: 'border-rose-200 bg-rose-50 text-rose-700',
+    border: 'border-l-rose-500',
+    label: 'High',
+  },
+  med: {
+    badge: 'border-amber-200 bg-amber-50 text-amber-700',
+    border: 'border-l-amber-500',
+    label: 'Medium',
+  },
+  low: {
+    badge: 'border-sky-200 bg-sky-50 text-sky-700',
+    border: 'border-l-sky-500',
+    label: 'Low',
+  },
 };
 
 const categoryLabel = (cat: string): string =>
-  cat
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-/* Build highlighted caption: marks matched text spans */
 const buildHighlightedCaption = (
   caption: string,
   issues: Issue[],
@@ -78,26 +99,25 @@ const buildHighlightedCaption = (
   const parts: React.ReactNode[] = [];
   let cursor = 0;
 
-  spans.forEach((span, i) => {
+  spans.forEach((span, idx) => {
     if (span.start < cursor) return;
-
     if (span.start > cursor) {
       parts.push(caption.slice(cursor, span.start));
     }
 
-    const isHigh = span.severity === 'high';
+    const highlightClass =
+      span.severity === 'high'
+        ? 'bg-rose-100 text-rose-900 decoration-rose-400'
+        : span.severity === 'med'
+        ? 'bg-amber-100 text-amber-900 decoration-amber-400'
+        : 'bg-sky-100 text-sky-900 decoration-sky-400';
+
     parts.push(
       <mark
-        key={`${span.issueId}-${i}`}
+        key={`${span.issueId}-${idx}`}
         onClick={() => onSelectIssue?.(span.issueId)}
-        style={{
-          cursor: 'pointer',
-          padding: '2px 4px',
-          background: isHigh ? '#fee2e2' : '#e0f2fe',
-          color: isHigh ? '#991b1b' : '#075985',
-          borderBottom: `2px solid ${isHigh ? '#dc2626' : '#0ea5e9'}`,
-        }}
-        title={`Click to view citation: ${span.text}`}
+        className={`cursor-pointer rounded px-1 py-0.5 font-medium underline decoration-wavy ${highlightClass}`}
+        title="Click to inspect cited violation"
       >
         {span.text}
       </mark>
@@ -113,143 +133,6 @@ const buildHighlightedCaption = (
   return parts;
 };
 
-const IssueCard: React.FC<{
-  issue: Issue;
-  caption: string;
-  brand: Brand;
-  isFocused?: boolean;
-  onApplyFix: (issueId: string, updatedCaption: string) => void;
-}> = ({ issue, caption, isFocused, onApplyFix }) => {
-  const [expanded, setExpanded] = useState(true);
-  const [showFixModal, setShowFixModal] = useState(false);
-  const isFixed = issue.status === 'fixed';
-  const sevStyle = SEVERITY_BADGE[issue.severity] || SEVERITY_BADGE.med;
-
-  return (
-    <>
-      <div
-        id={`issue-${issue.id}`}
-        style={{
-          background: isFixed ? 'var(--paper-mid)' : 'var(--white)',
-          border: `1px solid ${isFocused ? 'var(--ink)' : 'var(--rule)'}`,
-          boxShadow: isFocused ? '0 0 0 2px var(--ink)' : 'none',
-          padding: '18px 20px',
-          opacity: isFixed ? 0.6 : 1,
-          transition: 'all 0.15s',
-        }}
-      >
-        {/* Header row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span className="badge" style={{ background: sevStyle.bg, color: sevStyle.color, borderColor: sevStyle.border }}>
-            {sevStyle.color === '#b91c1c' ? 'High' : sevStyle.color === '#075985' ? 'Med' : 'Low'}
-          </span>
-          <span className="badge" style={{ background: 'var(--paper-mid)', color: 'var(--ink-mid)', borderColor: 'var(--rule)' }}>
-            {categoryLabel(issue.category)}
-          </span>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{
-              flex: 1,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              textAlign: 'left',
-              padding: 0,
-              fontFamily: 'var(--font-serif)',
-              fontSize: 16,
-              fontWeight: 700,
-              color: 'var(--ink)',
-              textDecoration: isFixed ? 'line-through' : 'none',
-            }}
-          >
-            {issue.rule_title || categoryLabel(issue.category)}
-          </button>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-faint)' }}>
-            {Math.round(issue.confidence * 100)}% conf
-          </span>
-          {issue.suggested_text && !isFixed && (
-            <button
-              onClick={() => setShowFixModal(true)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '5px 12px',
-                background: 'var(--btn-primary)',
-                color: 'var(--white)',
-                border: '1px solid var(--rule-dark)',
-                cursor: 'pointer',
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              <Wrench style={{ width: 12, height: 12 }} />
-              Apply Fix
-            </button>
-          )}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', padding: 2 }}
-          >
-            {expanded ? <ChevronUp style={{ width: 15, height: 15 }} /> : <ChevronDown style={{ width: 15, height: 15 }} />}
-          </button>
-        </div>
-
-        {/* Expanded detail */}
-        {expanded && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <span className="kicker" style={{ marginBottom: 4 }}>Explanation</span>
-              <p style={{ fontSize: 13, color: 'var(--ink-soft)', lineHeight: 1.6, margin: 0 }}>
-                {issue.explanation}
-              </p>
-            </div>
-
-            {issue.source_citation && (
-              <div style={{ background: 'var(--paper)', padding: '12px 16px', borderLeft: '3px solid var(--accent)' }}>
-                <span className="kicker" style={{ marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Quote style={{ width: 10, height: 10, color: 'var(--accent)' }} /> Guideline Citation
-                </span>
-                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink)', margin: 0, lineHeight: 1.6 }}>
-                  "{issue.source_citation}"
-                </p>
-              </div>
-            )}
-
-            {issue.category === 'claim_policy' && issue.evidence.conflicting_fact && (
-              <div style={{ background: '#fdf4ff', border: '1px solid #f0abfc', padding: '12px 16px' }}>
-                <span className="kicker" style={{ color: '#86198f', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Database style={{ width: 11, height: 11 }} /> Fact Vault Conflict
-                </span>
-                <p style={{ fontSize: 12, color: '#701a75', margin: 0 }}>
-                  Contradicts verified claim: "{issue.evidence.conflicting_fact}"
-                </p>
-              </div>
-            )}
-
-            {issue.suggestion && (
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px 16px' }}>
-                <span className="kicker" style={{ color: '#1e40af', marginBottom: 4 }}>Suggestion</span>
-                <p style={{ fontSize: 12, color: '#1e3a8a', margin: 0, lineHeight: 1.5 }}>
-                  {issue.suggestion}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <FixDiffModal
-        isOpen={showFixModal}
-        onClose={() => setShowFixModal(false)}
-        issue={issue}
-        currentCaption={caption}
-        onAcceptFix={onApplyFix}
-      />
-    </>
-  );
-};
-
 const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
   submission,
   issues,
@@ -259,207 +142,466 @@ const CitedIssueReport: React.FC<CitedIssueReportProps> = ({
   onBack,
   onSubmitForReview,
   onSubmitReview,
+  onRecalculate,
 }) => {
-  const [filter, setFilter] = useState<'all' | Severity>('all');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(issues.map((i) => i.id)));
+  const [fixModalIssue, setFixModalIssue] = useState<Issue | null>(null);
   const [reviewComment, setReviewComment] = useState('');
-  const [focusedIssueId, setFocusedIssueId] = useState<string | null>(null);
+  const [recalculating, setRecalculating] = useState(false);
 
-  const openIssues = useMemo(
-    () => issues.filter((i) => i.status === 'open'),
-    [issues]
+  const openIssues = useMemo(() => issues.filter((i) => i.status === 'open'), [issues]);
+  const fixedIssues = useMemo(() => issues.filter((i) => i.status === 'fixed'), [issues]);
+
+  const severityCounts = useMemo(
+    () => ({
+      high: openIssues.filter((i) => i.severity === 'high').length,
+      med: openIssues.filter((i) => i.severity === 'med').length,
+      low: openIssues.filter((i) => i.severity === 'low').length,
+    }),
+    [openIssues]
   );
 
-  const countBySeverity = useMemo(() => {
-    const counts = { high: 0, med: 0, low: 0 };
-    openIssues.forEach((i) => counts[i.severity]++);
-    return counts;
-  }, [openIssues]);
-
-  const filteredIssues = useMemo(
-    () =>
-      filter === 'all'
-        ? issues
-        : issues.filter((i) => i.severity === filter),
-    [issues, filter]
-  );
-
-  const isReviewer = currentUser.role === 'reviewer';
-  const isCreator = currentUser.role === 'creator';
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const handleSelectSpan = (issueId: string) => {
-    setFocusedIssueId(issueId);
-    const element = document.getElementById(`issue-${issueId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setExpandedIds((prev) => new Set(prev).add(issueId));
+    const el = document.getElementById(`issue-${issueId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleRecalculateClick = async () => {
+    if (!onRecalculate || recalculating) return;
+    setRecalculating(true);
+    try {
+      await onRecalculate(submission.id);
+    } finally {
+      setRecalculating(false);
     }
   };
 
+  const riskScore = submission.risk_score ?? 0;
+  const riskColor =
+    riskScore >= 70
+      ? 'text-rose-600'
+      : riskScore >= 40
+      ? 'text-amber-600'
+      : 'text-emerald-600';
+  const riskBarColor =
+    riskScore >= 70
+      ? 'bg-rose-500'
+      : riskScore >= 40
+      ? 'bg-amber-500'
+      : 'bg-emerald-500';
+
+  const complianceStatusLabel =
+    submission.review_status === 'approved'
+      ? 'Approved for Publication'
+      : submission.review_status === 'changes_requested'
+      ? 'Changes Requested'
+      : openIssues.length === 0
+      ? 'Compliant · Ready for Sign-off'
+      : 'Flagged · Pending Review';
+
+  const isReviewer = currentUser.role === 'reviewer' || currentUser.role === 'admin';
+
   return (
-    <div style={{ maxWidth: 1040, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
-      {/* ── Top Back Button ── */}
-      <button
-        onClick={onBack}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 20 }}
-      >
-        <ArrowLeft style={{ width: 14, height: 14 }} /> Back to Submissions
-      </button>
+    <div className="mx-auto max-w-6xl space-y-6 font-sans text-slate-900">
+      {/* ── Top Breadcrumb & Actions ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to list
+        </button>
 
-      {/* ── Header Summary Card ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, padding: '24px 28px', background: 'var(--white)', border: '1px solid var(--rule)', marginBottom: 32 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {/* Risk score stamp */}
-          <div
-            style={{
-              width: 68,
-              height: 68,
-              background: submission.risk_score >= 70 ? '#fef2f2' : submission.risk_score >= 40 ? '#e0f2fe' : '#f0fdf4',
-              border: `2px solid ${submission.risk_score >= 70 ? '#fca5a5' : submission.risk_score >= 40 ? '#7dd3fc' : '#86efac'}`,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 900, color: submission.risk_score >= 70 ? '#b91c1c' : submission.risk_score >= 40 ? '#075985' : '#15803d', lineHeight: 1 }}>
-              {submission.risk_score}
-            </span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-faint)', marginTop: 2 }}>
-              Risk
-            </span>
-          </div>
-
-          <div>
-            <div className="kicker-accent" style={{ marginBottom: 4 }}>Cited Compliance Report</div>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 900, color: 'var(--ink)', margin: 0, letterSpacing: '-0.02em' }}>
-              {submission.title}
-            </h1>
-            <p style={{ fontSize: 12, color: 'var(--ink-faint)', marginTop: 4 }}>
-              Creator: {submission.creator_name || 'Alex Rivera'} · Level: {submission.risk_level || 'Moderate'}
-            </p>
-          </div>
-        </div>
-
-        {/* Severity counters */}
-        <div style={{ display: 'flex', gap: 10 }}>
-          {(['high', 'med', 'low'] as const).map((sev) => {
-            const b = SEVERITY_BADGE[sev];
-            return (
-              <div key={sev} style={{ padding: '8px 14px', background: b.bg, border: `1px solid ${b.border}`, textAlign: 'center', minWidth: 64 }}>
-                <span className="kicker" style={{ color: b.color, marginBottom: 2 }}>{sev}</span>
-                <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, color: b.color }}>{countBySeverity[sev]}</span>
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-2.5">
+          {onRecalculate && (
+            <button
+              type="button"
+              onClick={handleRecalculateClick}
+              disabled={recalculating}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              {recalculating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Recalculate Analysis
+            </button>
+          )}
+          {currentUser.role === 'creator' && (
+            <button
+              type="button"
+              onClick={onSubmitForReview}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              <Send className="h-3.5 w-3.5" />
+              Send to Reviewer
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Two Column Layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '5fr 7fr', gap: 28, alignItems: 'start' }}>
-        {/* Left column — Submitted content */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div>
-            <div className="kicker" style={{ marginBottom: 8 }}>Submitted Caption Copy</div>
-            <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '20px', fontSize: 13, lineHeight: 1.7, color: 'var(--ink-soft)' }}>
-              {buildHighlightedCaption(submission.caption, issues, handleSelectSpan)}
+      {/* ── Hero Summary Banner ── */}
+      <div className="saas-card p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="kicker-accent">Compliance Report</span>
+              <span className="text-slate-300">·</span>
+              <span className="font-mono text-xs text-slate-500">{brand.name}</span>
             </div>
-            <span className="kicker" style={{ marginTop: 6, color: 'var(--ink-faint)' }}>
-              Click highlighted phrases to view citations in report.
-            </span>
+            <h1 className="font-serif text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              {submission.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <span
+                className={`badge ${
+                  submission.review_status === 'approved'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : submission.review_status === 'changes_requested'
+                    ? 'border-rose-200 bg-rose-50 text-rose-700'
+                    : openIssues.length === 0
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+              >
+                {complianceStatusLabel}
+              </span>
+              <span className="text-xs text-slate-500">
+                Submitted by <strong className="font-medium text-slate-700">{submission.creator_name || 'Creator'}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Risk Gauge & Severity Breakdown */}
+          <div className="flex flex-wrap items-center gap-6 rounded-xl border border-slate-200 bg-slate-50/80 px-6 py-4">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                Risk Score
+              </div>
+              <div className="mt-1 flex items-baseline gap-1">
+                <AnimatedCounter
+                  value={riskScore}
+                  className={`font-serif text-3xl font-bold ${riskColor}`}
+                />
+                <span className="font-mono text-xs text-slate-400">/ 100</span>
+              </div>
+              <div className="mt-2 w-28">
+                <AnimatedProgressBar value={riskScore} barClassName={riskBarColor} />
+              </div>
+            </div>
+
+            <div className="h-12 w-px bg-slate-200" />
+
+            <div className="flex items-center gap-4 text-center">
+              <div>
+                <div className="font-mono text-lg font-bold text-rose-600">{severityCounts.high}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">High</div>
+              </div>
+              <div>
+                <div className="font-mono text-lg font-bold text-amber-600">{severityCounts.med}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Med</div>
+              </div>
+              <div>
+                <div className="font-mono text-lg font-bold text-sky-600">{severityCounts.low}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Low</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Two-Column Inspection Layout ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Left: Annotated Asset & Caption */}
+        <div className="space-y-5 lg:col-span-5">
+          <div className="saas-card overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-3.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Annotated Marketing Copy
+              </h2>
+            </div>
+            <div className="p-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
+                {buildHighlightedCaption(submission.caption || '(No caption text)', issues, handleSelectSpan)}
+              </div>
+              {openIssues.length > 0 && (
+                <p className="mt-2.5 text-[11px] text-slate-400">
+                  Click any highlighted phrase to jump to its cited guideline violation.
+                </p>
+              )}
+            </div>
           </div>
 
           {submission.image_url && (
-            <div>
-              <div className="kicker" style={{ marginBottom: 8 }}>Poster Graphic</div>
-              <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '8px' }}>
-                <img src={submission.image_url} alt="" style={{ width: '100%', height: 'auto', display: 'block' }} />
+            <div className="saas-card overflow-hidden">
+              <div className="border-b border-slate-100 px-5 py-3.5">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Creative Asset Preview
+                </h2>
+              </div>
+              <div className="p-5">
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                  <img
+                    src={submission.image_url}
+                    alt={submission.title}
+                    className="max-h-72 w-full object-cover"
+                  />
+                </div>
+                {submission.ocr_text && (
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                    <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <ScanText className="h-3.5 w-3.5" /> Extracted Poster OCR
+                    </div>
+                    <pre className="whitespace-pre-wrap font-mono text-xs text-slate-700">
+                      {submission.ocr_text}
+                    </pre>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {isCreator && (
-            <button
-              onClick={onSubmitForReview}
-              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px 24px', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
-            >
-              <Send style={{ width: 14, height: 14 }} /> Submit for Human Review
-            </button>
-          )}
-
+          {/* Reviewer Sign-off Card */}
           {isReviewer && (
-            <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '20px' }}>
-              <div className="kicker-accent" style={{ marginBottom: 8 }}>Reviewer Decision</div>
+            <div className="saas-card p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-sky-600" />
+                <h2 className="text-sm font-semibold text-slate-900">
+                  Human Governance Decision
+                </h2>
+              </div>
+              <p className="mb-4 text-xs text-slate-500">
+                AI detects and explains. Humans decide and approve. Record your final sign-off below.
+              </p>
               <textarea
+                rows={3}
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
-                placeholder="Leave reviewer notes..."
-                rows={2}
-                style={{ width: '100%', padding: '8px 10px', fontSize: 12, border: '1px solid var(--rule)', background: 'var(--paper)', color: 'var(--ink)', outline: 'none', resize: 'none', marginBottom: 10 }}
+                placeholder="Add reviewer notes or rationale for audit log..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
               />
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
-                  onClick={() => onSubmitReview(submission.id, 'approve', reviewComment)}
-                  style={{ flex: 1, padding: '9px', background: '#f0fdf4', color: '#15803d', border: '1px solid #86efac', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  type="button"
+                  onClick={() => {
+                    onSubmitReview(submission.id, 'approve', reviewComment);
+                    setReviewComment('');
+                  }}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
-                  <CheckCircle2 style={{ width: 13, height: 13 }} /> Approve
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Approve
                 </button>
                 <button
-                  onClick={() => onSubmitReview(submission.id, 'request_changes', reviewComment)}
-                  style={{ flex: 1, padding: '9px', background: '#fef2f2', color: '#b91c1c', border: '1px solid #fca5a5', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  type="button"
+                  onClick={() => {
+                    onSubmitReview(submission.id, 'request_changes', reviewComment);
+                    setReviewComment('');
+                  }}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                 >
-                  <AlertTriangle style={{ width: 13, height: 13 }} /> Request Changes
+                  <XCircle className="h-3.5 w-3.5" />
+                  Request Changes
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right column — Cited issues */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div className="kicker">Compliance Violations ({filteredIssues.length})</div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {(['all', 'high', 'med', 'low'] as const).map((sev) => (
-                <button
-                  key={sev}
-                  onClick={() => setFilter(sev)}
-                  style={{
-                    padding: '3px 10px',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textTransform: 'uppercase',
-                    background: filter === sev ? 'var(--ink)' : 'transparent',
-                    color: filter === sev ? 'var(--white)' : 'var(--ink-faint)',
-                    border: `1px solid ${filter === sev ? 'var(--ink)' : 'var(--rule)'}`,
-                  }}
-                >
-                  {sev}
-                </button>
-              ))}
+        {/* Right: Cited Issues List */}
+        <div className="space-y-4 lg:col-span-7">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">
+              Detected Issues ({openIssues.length} open · {fixedIssues.length} resolved)
+            </h2>
+          </div>
+
+          {issues.length === 0 ? (
+            <div className="saas-card p-10 text-center">
+              <CheckCircle2 className="mx-auto mb-3 h-9 w-9 text-emerald-500" />
+              <h3 className="text-base font-semibold text-slate-900">No Compliance Issues Detected</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                This submission passed all active brand rules and Fact Vault checks.
+              </p>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {issues.map((issue) => {
+                const isExpanded = expandedIds.has(issue.id);
+                const sev = SEVERITY_STYLE[issue.severity] || SEVERITY_STYLE.med;
+                const isFixed = issue.status === 'fixed';
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filteredIssues.map((issue) => (
-              <IssueCard
-                key={issue.id}
-                issue={issue}
-                caption={submission.caption}
-                brand={brand}
-                isFocused={focusedIssueId === issue.id}
-                onApplyFix={onApplyFix}
-              />
-            ))}
+                return (
+                  <div
+                    key={issue.id}
+                    id={`issue-${issue.id}`}
+                    className={`saas-card overflow-hidden border-l-4 ${
+                      isFixed ? 'border-l-emerald-500 opacity-80' : sev.border
+                    }`}
+                  >
+                    {/* Header */}
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(issue.id)}
+                      className="btn-plain flex w-full items-center justify-between gap-4 px-5 py-4 text-left hover:bg-slate-50/70"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isFixed ? (
+                            <span className="badge border-emerald-200 bg-emerald-50 text-emerald-700">
+                              <CheckCircle2 className="h-3 w-3" /> Resolved
+                            </span>
+                          ) : (
+                            <span className={`badge ${sev.badge}`}>
+                              <AlertTriangle className="h-3 w-3" /> {sev.label}
+                            </span>
+                          )}
+                          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-medium text-slate-600">
+                            {categoryLabel(issue.category)}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400">
+                            Confidence {Math.round((issue.confidence || 0.85) * 100)}%
+                          </span>
+                        </div>
+                        <h3 className="mt-2 text-sm font-semibold text-slate-900">
+                          {issue.rule_title || categoryLabel(issue.category)}
+                        </h3>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+                      )}
+                    </button>
 
-            {filteredIssues.length === 0 && (
-              <div style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--white)', border: '1px solid var(--rule)' }}>
-                <p style={{ fontSize: 13, color: 'var(--ink-faint)', margin: 0 }}>No issues in this filter.</p>
-              </div>
-            )}
-          </div>
+                    {/* Body */}
+                    <AnimatePresence initial={false}>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.22, ease: EASE_OUT_EXPO }}
+                          className="overflow-hidden border-t border-slate-100"
+                        >
+                          <div className="space-y-4 px-5 py-4 text-xs">
+                        <p className="leading-relaxed text-slate-700">{issue.explanation}</p>
+
+                        {/* Citation */}
+                        {issue.source_citation && (
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                              <Quote className="h-3 w-3 text-sky-600" /> Supporting Guideline Citation
+                            </div>
+                            <p className="font-mono text-[11px] italic text-slate-700">
+                              &ldquo;{issue.source_citation}&rdquo;
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Evidence Metadata */}
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {issue.evidence.matched_text && (
+                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                Matched Evidence
+                              </span>
+                              <div className="mt-1 font-mono text-xs font-semibold text-rose-700">
+                                &ldquo;{issue.evidence.matched_text}&rdquo;
+                              </div>
+                            </div>
+                          )}
+
+                          {issue.evidence.conflicting_fact && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+                              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                                <Database className="h-3 w-3" /> Fact Vault Conflict
+                              </span>
+                              <div className="mt-1 text-xs font-medium text-slate-800">
+                                {issue.evidence.conflicting_fact}
+                              </div>
+                              {issue.evidence.fact_expiry && (
+                                <div className="mt-0.5 font-mono text-[10px] text-amber-700">
+                                  Expired: {new Date(issue.evidence.fact_expiry).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {issue.evidence.detected_color && (
+                            <div className="rounded-lg border border-slate-200 bg-white p-3">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                Visual Colour Check
+                              </span>
+                              <div className="mt-1 flex items-center gap-2 font-mono text-xs">
+                                <span
+                                  className="h-4 w-4 rounded border border-slate-300"
+                                  style={{ background: issue.evidence.detected_color }}
+                                />
+                                <span>{issue.evidence.detected_color}</span>
+                                {issue.evidence.delta_e !== undefined && (
+                                  <span className="text-slate-400">ΔE {issue.evidence.delta_e.toFixed(1)}</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Suggestion & Fix Action */}
+                        <div className="flex flex-col justify-between gap-3 rounded-xl border border-sky-100 bg-sky-50/60 p-3.5 sm:flex-row sm:items-center">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-700">
+                              Suggested Correction
+                            </span>
+                            <p className="text-xs font-medium text-slate-800">{issue.suggestion}</p>
+                          </div>
+
+                          {!isFixed && issue.suggested_text && (
+                            <button
+                              type="button"
+                              onClick={() => setFixModalIssue(issue)}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+                            >
+                              <Wrench className="h-3.5 w-3.5" />
+                              Review &amp; Apply Fix
+                            </button>
+                          )}
+                        </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Fix Diff Modal */}
+      {fixModalIssue && (
+        <FixDiffModal
+          isOpen={!!fixModalIssue}
+          onClose={() => setFixModalIssue(null)}
+          issue={fixModalIssue}
+          currentCaption={submission.caption}
+          onAcceptFix={onApplyFix}
+        />
+      )}
     </div>
   );
 };

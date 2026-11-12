@@ -1,10 +1,11 @@
 import type { AppProps } from 'next/app';
+import { MotionConfig } from 'framer-motion';
 import '@/styles/globals.css';
 import Head from 'next/head';
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <Head>
         <title>BrandLint — ESLint for Brand Content</title>
         <meta
@@ -16,6 +17,6 @@ export default function App({ Component, pageProps }: AppProps) {
         <link rel="alternate icon" href="/favicon.ico" type="image/x-icon" />
       </Head>
       <Component {...pageProps} />
-    </>
+    </MotionConfig>
   );
 }

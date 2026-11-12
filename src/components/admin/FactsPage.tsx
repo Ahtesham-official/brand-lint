@@ -6,6 +6,8 @@ import {
   Search,
   ExternalLink,
   Calendar,
+  Database,
+  X,
 } from 'lucide-react';
 import { Fact, FactStatus } from '@/types';
 
@@ -16,10 +18,10 @@ interface FactsPageProps {
   onDeleteFact: (id: string) => void;
 }
 
-const STATUS_STYLE: Record<FactStatus, { bg: string; color: string; border: string; label: string }> = {
-  active:     { bg: '#f0fdf4', color: '#15803d', border: '#86efac', label: 'Active' },
-  expired:    { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5', label: 'Expired' },
-  deprecated: { bg: 'var(--paper-mid)', color: 'var(--ink-faint)', border: 'var(--rule)', label: 'Deprecated' },
+const STATUS_CLASS: Record<FactStatus, { cls: string; label: string }> = {
+  active:     { cls: 'border-emerald-200 bg-emerald-50 text-emerald-700', label: 'Active' },
+  expired:    { cls: 'border-rose-200 bg-rose-50 text-rose-700',          label: 'Expired' },
+  deprecated: { cls: 'border-slate-200 bg-slate-100 text-slate-500',      label: 'Deprecated' },
 };
 
 const FactsPage: React.FC<FactsPageProps> = ({
@@ -81,357 +83,383 @@ const FactsPage: React.FC<FactsPageProps> = ({
     setEditSourceUrl(fact.source_url || '');
     setEditExpiresAt(fact.expires_at ? fact.expires_at.slice(0, 10) : '');
     setEditStatus(fact.status);
-    setEditCategory(fact.category || 'General');
+    setEditCategory(fact.category || 'Hardware Specs');
     setEditNotes(fact.notes || '');
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingFact || !editClaim.trim()) return;
-
+    if (!editingFact || !editClaim.trim() || !editSourceDoc.trim()) return;
     onUpdateFact(editingFact.id, {
       claim: editClaim.trim(),
       source_document: editSourceDoc.trim(),
       source_url: editSourceUrl.trim() || undefined,
       expires_at: editExpiresAt ? new Date(editExpiresAt).toISOString() : editingFact.expires_at,
-      status: isExpired(editExpiresAt) ? 'expired' : editStatus,
+      status: editStatus,
       category: editCategory.trim(),
       notes: editNotes.trim() || undefined,
     });
     setEditingFact(null);
   };
 
-  const filteredFacts = facts.filter((fact) => {
-    const expired = isExpired(fact.expires_at) || fact.status === 'expired';
-    if (filter === 'active' && expired) return false;
-    if (filter === 'expired' && !expired) return false;
-
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      fact.claim.toLowerCase().includes(q) ||
-      fact.source_document.toLowerCase().includes(q) ||
-      (fact.category && fact.category.toLowerCase().includes(q))
-    );
+  const filteredFacts = facts.filter((f) => {
+    const expiredFlag = f.status === 'expired' || isExpired(f.expires_at);
+    if (filter === 'active' && expiredFlag) return false;
+    if (filter === 'expired' && !expiredFlag) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return (
+        f.claim.toLowerCase().includes(q) ||
+        f.source_document.toLowerCase().includes(q) ||
+        (f.category || '').toLowerCase().includes(q)
+      );
+    }
+    return true;
   });
 
-  const expiredCount = facts.filter((f) => isExpired(f.expires_at) || f.status === 'expired').length;
-
   return (
-    <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="mx-auto max-w-5xl space-y-6 font-sans text-slate-900">
       {/* ── Page Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
         <div>
-          <div className="kicker-accent" style={{ marginBottom: 8 }}>Knowledge Base</div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
-            Approved Fact Vault
+          <span className="kicker-accent mb-1.5">Verified Claims Repository</span>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">
+            Fact Vault
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
-            Verified, expiring claims checked by AI to prevent hallucinated or contradictory statements.
+          <p className="mt-1 text-sm text-slate-500">
+            Approved product specs, warranties, and certifications with automatic expiry enforcement.
           </p>
         </div>
+
         <button
+          type="button"
           onClick={() => setShowAddModal(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
         >
-          <Plus style={{ width: 14, height: 14 }} /> Add Fact Record
+          <Plus className="h-3.5 w-3.5" />
+          Add Verified Fact
         </button>
       </div>
 
-      {/* ── Filter and Search ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(['all', 'active', 'expired'] as const).map((tab) => {
-            const isActive = filter === tab;
-            const count = tab === 'all' ? facts.length : tab === 'active' ? facts.length - expiredCount : expiredCount;
-            return (
-              <button
-                key={tab}
-                onClick={() => setFilter(tab)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '7px 16px',
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 400,
-                  cursor: 'pointer',
-                  background: isActive ? 'var(--ink)' : 'var(--white)',
-                  color: isActive ? 'var(--white)' : 'var(--ink-mid)',
-                  border: `1px solid ${isActive ? 'var(--ink)' : 'var(--rule)'}`,
-                  textTransform: 'capitalize',
-                  transition: 'all 0.1s',
-                }}
-              >
-                <span>{tab}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.8 }}>({count})</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div style={{ position: 'relative', width: 280 }}>
-          <Search style={{ width: 14, height: 14, color: 'var(--ink-faint)', position: 'absolute', left: 12, top: 12 }} />
+      {/* ── Search & Filter Bar ── */}
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
+            placeholder="Search verified claims…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search claims, sources..."
-            style={{
-              width: '100%',
-              padding: '9px 12px 9px 34px',
-              fontSize: 13,
-              border: '1px solid var(--rule)',
-              background: 'var(--white)',
-              color: 'var(--ink)',
-              outline: 'none',
-              fontFamily: 'var(--font-sans)',
-            }}
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-sky-500"
           />
+        </div>
+
+        <div className="flex gap-1.5">
+          {(['all', 'active', 'expired'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`btn-plain rounded-full px-3.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                filter === f
+                  ? 'bg-slate-900 text-white'
+                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <div style={{ background: 'var(--white)', border: '1px solid var(--rule)' }}>
-        {filteredFacts.length === 0 ? (
-          <div style={{ padding: '64px 24px', textAlign: 'center' }}>
-            <p style={{ fontSize: 14, color: 'var(--ink-faint)' }}>No matching facts in the vault.</p>
-          </div>
-        ) : (
-          <table className="ed-table">
-            <thead>
-              <tr>
-                <th>Verified Claim</th>
-                <th>Source Document</th>
-                <th>Category</th>
-                <th>Expires At</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFacts.map((fact) => {
-                const expired = isExpired(fact.expires_at) || fact.status === 'expired';
-                const st = STATUS_STYLE[expired ? 'expired' : fact.status] || STATUS_STYLE.active;
+      {/* ── Facts List ── */}
+      {filteredFacts.length === 0 ? (
+        <div className="saas-card p-16 text-center">
+          <Database className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+          <p className="text-sm font-medium text-slate-700">No facts found</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Add approved product claims or adjust your search filter.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filteredFacts.map((fact) => {
+            const effectiveStatus: FactStatus =
+              fact.status === 'deprecated'
+                ? 'deprecated'
+                : isExpired(fact.expires_at) || fact.status === 'expired'
+                ? 'expired'
+                : 'active';
+            const st = STATUS_CLASS[effectiveStatus];
 
-                return (
-                  <tr key={fact.id}>
-                    <td>
-                      <div style={{ maxWidth: 360 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.4 }}>
-                          {fact.claim}
-                        </div>
-                        {fact.notes && (
-                          <div style={{ fontSize: 11, color: 'var(--ink-faint)', marginTop: 4 }}>
-                            {fact.notes}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ fontSize: 13, color: 'var(--ink-mid)' }}>{fact.source_document}</div>
+            return (
+              <div key={fact.id} className="saas-card p-5">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`badge ${st.cls}`}>{st.label}</span>
+                      {fact.category && (
+                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-medium text-slate-600">
+                          {fact.category}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-slate-400">
+                        <Calendar className="h-3 w-3" />
+                        Expires {new Date(fact.expires_at).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    <p className="text-sm font-semibold text-slate-900">{fact.claim}</p>
+
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <span>Source: <strong className="font-medium text-slate-700">{fact.source_document}</strong></span>
                       {fact.source_url && (
                         <a
                           href={fact.source_url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--accent)', marginTop: 2, textDecoration: 'none' }}
+                          className="inline-flex items-center gap-1 text-sky-600 hover:underline"
                         >
-                          Source link <ExternalLink style={{ width: 10, height: 10 }} />
+                          View doc <ExternalLink className="h-3 w-3" />
                         </a>
                       )}
-                    </td>
-                    <td>
-                      <span className="badge" style={{ background: 'var(--paper-mid)', color: 'var(--ink-mid)', borderColor: 'var(--rule)' }}>
-                        {fact.category || 'General'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 11, color: expired ? '#b91c1c' : 'var(--ink-mid)' }}>
-                        <Calendar style={{ width: 12, height: 12 }} />
-                        {new Date(fact.expires_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge" style={{ background: st.bg, color: st.color, borderColor: st.border }}>
-                        {st.label}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => handleOpenEdit(fact)}
-                          style={{ padding: '5px 10px', background: 'transparent', border: '1px solid var(--rule)', cursor: 'pointer', color: 'var(--ink-mid)' }}
-                          title="Edit fact"
-                        >
-                          <Pencil style={{ width: 12, height: 12 }} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete fact: "${fact.claim}"?`)) {
-                              onDeleteFact(fact.id);
-                            }
-                          }}
-                          style={{ padding: '5px 10px', background: '#fef2f2', border: '1px solid #fca5a5', cursor: 'pointer', color: '#b91c1c' }}
-                          title="Delete fact"
-                        >
-                          <Trash2 style={{ width: 12, height: 12 }} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                    </div>
 
-      {/* ── Add Fact Modal ── */}
-      {showAddModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.55)', padding: 24 }}>
-          <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div className="kicker-accent" style={{ marginBottom: 4 }}>Fact Vault</div>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Add Verified Claim</h3>
-              </div>
-              <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
-            </div>
+                    {fact.notes && (
+                      <p className="text-xs italic text-slate-400">{fact.notes}</p>
+                    )}
+                  </div>
 
-            <form onSubmit={handleAdd} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Verified Claim Statement *</label>
-                <textarea rows={2} value={claim} onChange={(e) => setClaim(e.target.value)} placeholder="e.g. Apex 500 contains 100% recycled aerospace aluminum." required autoFocus style={{ ...iStyle(), resize: 'vertical' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                <div>
-                  <label className="kicker" style={{ marginBottom: 6 }}>Category</label>
-                  <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Hardware, Warranty, Green..." style={iStyle()} />
-                </div>
-                <div>
-                  <label className="kicker" style={{ marginBottom: 6 }}>Expires On *</label>
-                  <input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} required style={iStyle()} />
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(fact)}
+                      className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:bg-slate-50"
+                      title="Edit fact"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteFact(fact.id)}
+                      className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                      title="Delete fact"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Source Document or Citation *</label>
-                <input type="text" value={sourceDoc} onChange={(e) => setSourceDoc(e.target.value)} placeholder="e.g. Materials Certification Report 2024" required style={iStyle()} />
-              </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Source URL (optional)</label>
-                <input type="url" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} placeholder="https://..." style={iStyle()} />
-              </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Internal Notes (optional)</label>
-                <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Audit cert ref, legal approval notes..." style={{ ...iStyle(), resize: 'vertical' }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
-                <button type="button" onClick={() => setShowAddModal(false)} style={ghostBtn()}>Cancel</button>
-                <button type="submit" disabled={!claim.trim() || !sourceDoc.trim() || !expiresAt} style={solidBtn(!claim.trim() || !sourceDoc.trim() || !expiresAt)}>Add Fact</button>
-              </div>
-            </form>
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {/* ── Edit Fact Modal ── */}
+      {/* Add Fact Modal */}
+      {showAddModal && (
+        <FactModal
+          title="Add Verified Fact"
+          onClose={() => setShowAddModal(false)}
+          onSubmit={handleAdd}
+          claim={claim}
+          setClaim={setClaim}
+          sourceDoc={sourceDoc}
+          setSourceDoc={setSourceDoc}
+          sourceUrl={sourceUrl}
+          setSourceUrl={setSourceUrl}
+          expiresAt={expiresAt}
+          setExpiresAt={setExpiresAt}
+          category={category}
+          setCategory={setCategory}
+          notes={notes}
+          setNotes={setNotes}
+          submitLabel="Save Fact"
+        />
+      )}
+
+      {/* Edit Fact Modal */}
       {editingFact && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(28,25,23,0.55)', padding: 24 }}>
-          <div className="animate-in" style={{ background: 'var(--white)', border: '1px solid var(--rule)', width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.12)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div className="kicker-accent" style={{ marginBottom: 4 }}>Fact Vault</div>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 20, color: 'var(--ink)', margin: 0 }}>Edit Claim Record</h3>
-              </div>
-              <button onClick={() => setEditingFact(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-faint)', fontSize: 22, lineHeight: 1 }}>×</button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Verified Claim Statement</label>
-                <textarea rows={2} value={editClaim} onChange={(e) => setEditClaim(e.target.value)} required style={{ ...iStyle(), resize: 'vertical' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-                <div>
-                  <label className="kicker" style={{ marginBottom: 6 }}>Category</label>
-                  <input type="text" value={editCategory} onChange={(e) => setEditCategory(e.target.value)} style={iStyle()} />
-                </div>
-                <div>
-                  <label className="kicker" style={{ marginBottom: 6 }}>Expires On</label>
-                  <input type="date" value={editExpiresAt} onChange={(e) => setEditExpiresAt(e.target.value)} required style={iStyle()} />
-                </div>
-              </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Source Document</label>
-                <input type="text" value={editSourceDoc} onChange={(e) => setEditSourceDoc(e.target.value)} required style={iStyle()} />
-              </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Source URL</label>
-                <input type="url" value={editSourceUrl} onChange={(e) => setEditSourceUrl(e.target.value)} style={iStyle()} />
-              </div>
-
-              <div>
-                <label className="kicker" style={{ marginBottom: 6 }}>Internal Notes</label>
-                <textarea rows={2} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} style={{ ...iStyle(), resize: 'vertical' }} />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10, borderTop: '1px solid var(--rule)' }}>
-                <button type="button" onClick={() => setEditingFact(null)} style={ghostBtn()}>Cancel</button>
-                <button type="submit" style={solidBtn()}>Save Changes</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <FactModal
+          title="Edit Verified Fact"
+          onClose={() => setEditingFact(null)}
+          onSubmit={handleEditSubmit}
+          claim={editClaim}
+          setClaim={setEditClaim}
+          sourceDoc={editSourceDoc}
+          setSourceDoc={setEditSourceDoc}
+          sourceUrl={editSourceUrl}
+          setSourceUrl={setEditSourceUrl}
+          expiresAt={editExpiresAt}
+          setExpiresAt={setEditExpiresAt}
+          category={editCategory}
+          setCategory={setEditCategory}
+          notes={editNotes}
+          setNotes={setEditNotes}
+          status={editStatus}
+          setStatus={setEditStatus}
+          submitLabel="Update Fact"
+        />
       )}
     </div>
   );
 };
 
-function iStyle(): React.CSSProperties {
-  return {
-    width: '100%',
-    padding: '9px 12px',
-    fontSize: 13,
-    border: '1px solid var(--rule)',
-    background: 'var(--paper)',
-    color: 'var(--ink)',
-    outline: 'none',
-    fontFamily: 'var(--font-sans)',
-  };
-}
+function FactModal({
+  title,
+  onClose,
+  onSubmit,
+  claim,
+  setClaim,
+  sourceDoc,
+  setSourceDoc,
+  sourceUrl,
+  setSourceUrl,
+  expiresAt,
+  setExpiresAt,
+  category,
+  setCategory,
+  notes,
+  setNotes,
+  status,
+  setStatus,
+  submitLabel,
+}: {
+  title: string;
+  onClose: () => void;
+  onSubmit: (e: React.FormEvent) => void;
+  claim: string;
+  setClaim: (v: string) => void;
+  sourceDoc: string;
+  setSourceDoc: (v: string) => void;
+  sourceUrl: string;
+  setSourceUrl: (v: string) => void;
+  expiresAt: string;
+  setExpiresAt: (v: string) => void;
+  category: string;
+  setCategory: (v: string) => void;
+  notes: string;
+  setNotes: (v: string) => void;
+  status?: FactStatus;
+  setStatus?: (v: FactStatus) => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+      <div className="animate-in w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <h2 className="font-serif text-lg font-bold text-slate-900">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-50"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
-function ghostBtn(): React.CSSProperties {
-  return {
-    padding: '9px 20px',
-    fontSize: 13,
-    fontWeight: 500,
-    cursor: 'pointer',
-    background: 'transparent',
-    color: 'var(--ink-mid)',
-    border: '1px solid var(--rule)',
-  };
-}
+        <form onSubmit={onSubmit} className="space-y-4 p-6 text-xs">
+          <div>
+            <label className="kicker mb-1.5">Approved Claim *</label>
+            <textarea
+              rows={2}
+              value={claim}
+              onChange={(e) => setClaim(e.target.value)}
+              required
+              placeholder="e.g. Standard limited hardware warranty is 12 months."
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
+            />
+          </div>
 
-function solidBtn(disabled = false): React.CSSProperties {
-  return {
-    padding: '9px 22px',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    background: 'var(--btn-primary)',
-    color: 'var(--white)',
-    border: '1px solid var(--rule-dark)',
-    opacity: disabled ? 0.4 : 1,
-  };
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="kicker mb-1.5">Source Document *</label>
+              <input
+                type="text"
+                value={sourceDoc}
+                onChange={(e) => setSourceDoc(e.target.value)}
+                required
+                placeholder="e.g. Legal Warranty Policy v2"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+              />
+            </div>
+            <div>
+              <label className="kicker mb-1.5">Category</label>
+              <input
+                type="text"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="kicker mb-1.5">Expiration Date *</label>
+              <input
+                type="date"
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+              />
+            </div>
+            {status && setStatus ? (
+              <div>
+                <label className="kicker mb-1.5">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as FactStatus)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+                >
+                  <option value="active">Active</option>
+                  <option value="expired">Expired</option>
+                  <option value="deprecated">Deprecated</option>
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="kicker mb-1.5">Source URL (optional)</label>
+                <input
+                  type="url"
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+                />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="kicker mb-1.5">Notes (optional)</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 outline-none focus:border-sky-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-semibold text-white hover:bg-slate-800"
+            >
+              {submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export default FactsPage;

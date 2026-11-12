@@ -19,21 +19,18 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
   const [tagline, setTagline] = useState(brand.tagline ?? '');
   const [logoUrl, setLogoUrl] = useState(brand.logo_url);
   const [wcagRatio, setWcagRatio] = useState(brand.palette.wcag_min_contrast);
+  const [savedToast, setSavedToast] = useState(false);
 
-  // Editable colors list
   const [approvedColors, setApprovedColors] = useState<ColorEntry[]>([]);
   const [forbiddenColors, setForbiddenColors] = useState<string[]>([]);
 
-  // New color state
   const [newColorName, setNewColorName] = useState('');
   const [newColorHex, setNewColorHex] = useState('#2563EB');
   const [showAddColor, setShowAddColor] = useState(false);
 
-  // New forbidden color state
   const [newForbiddenHex, setNewForbiddenHex] = useState('#EF4444');
   const [showAddForbidden, setShowAddForbidden] = useState(false);
 
-  // Editing color inline state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editHex, setEditHex] = useState('');
@@ -44,7 +41,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
     setLogoUrl(brand.logo_url);
     setWcagRatio(brand.palette.wcag_min_contrast);
 
-    // Build editable list from primary, secondary, accent + additional_approved
     const list: ColorEntry[] = [];
     if (brand.palette.primary) {
       list.push({ id: 'primary', name: brand.palette.primary_name || 'Primary', hex: brand.palette.primary, role: 'primary' });
@@ -65,7 +61,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
   }, [brand]);
 
   const handleSave = () => {
-    // Map list back to palette
     const primaryEntry = approvedColors.find((c) => c.role === 'primary') || approvedColors[0];
     const secondaryEntry = approvedColors.find((c) => c.role === 'secondary') || approvedColors[1];
     const accentEntry = approvedColors.find((c) => c.role === 'accent') || approvedColors[2];
@@ -91,6 +86,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
         wcag_min_contrast: wcagRatio,
       },
     });
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2500);
   };
 
   const handleAddApprovedColor = () => {
@@ -145,282 +142,239 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
   };
 
   return (
-    <div style={{ fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="mx-auto max-w-5xl space-y-6 font-sans text-slate-900">
       {/* ── Page Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
         <div>
-          <div className="kicker-accent" style={{ marginBottom: 8 }}>Identity Settings</div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
-            Brand Profile &amp; Colors
+          <span className="kicker-accent mb-1.5">Identity Settings</span>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">
+            Brand Profile &amp; Colours
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
-            Manage identity metadata, customize approved brand palette, and restrict forbidden hues.
+          <p className="mt-1 text-sm text-slate-500">
+            Manage brand metadata, approved palette swatches, and WCAG contrast thresholds.
           </p>
         </div>
+
         <button
+          type="button"
           onClick={handleSave}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 24px', background: 'var(--btn-primary)', color: 'var(--white)', border: '1px solid var(--rule-dark)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800"
         >
-          <Save style={{ width: 14, height: 14 }} /> Save Changes
+          {savedToast ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Save className="h-3.5 w-3.5" />}
+          {savedToast ? 'Saved!' : 'Save Changes'}
         </button>
       </div>
 
       {/* ── Two Column Layout ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'start' }}>
-        {/* Left column — Identity Form */}
-        <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '28px 30px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="kicker" style={{ marginBottom: -4 }}>Brand Metadata</div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Left: Identity Metadata */}
+        <div className="saas-card space-y-4 p-6">
+          <h2 className="text-sm font-semibold text-slate-900">Brand Identity</h2>
 
           <div>
-            <label className="kicker" style={{ marginBottom: 6 }}>Brand Name</label>
+            <label className="kicker mb-1.5">Brand Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              style={iStyle()}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
             />
           </div>
 
           <div>
-            <label className="kicker" style={{ marginBottom: 6 }}>Tagline</label>
+            <label className="kicker mb-1.5">Tagline</label>
             <input
               type="text"
               value={tagline}
               onChange={(e) => setTagline(e.target.value)}
-              style={iStyle()}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
             />
           </div>
 
           <div>
-            <label className="kicker" style={{ marginBottom: 6 }}>Logo Asset URL</label>
+            <label className="kicker mb-1.5">Logo URL</label>
             <input
               type="text"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
-              style={{ ...iStyle(), fontFamily: 'var(--font-mono)', fontSize: 12 }}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 font-mono text-xs text-slate-800 outline-none focus:border-sky-500 focus:bg-white"
             />
           </div>
 
           <div>
-            <label className="kicker" style={{ marginBottom: 6 }}>WCAG Minimum Contrast Ratio</label>
+            <label className="kicker mb-1.5">Minimum WCAG Contrast Ratio ({wcagRatio}:1)</label>
             <input
-              type="number"
-              step="0.1"
-              min="1"
+              type="range"
+              min={3}
+              max={7}
+              step={0.5}
               value={wcagRatio}
-              onChange={(e) => setWcagRatio(parseFloat(e.target.value) || 4.5)}
-              style={{ ...iStyle(), width: 140 }}
+              onChange={(e) => setWcagRatio(parseFloat(e.target.value))}
+              className="w-full accent-slate-900"
             />
-            <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-faint)', marginTop: 4 }}>
-              Standard AA compliance mandates 4.5:1 minimum ratio for standard text copy.
-            </span>
           </div>
         </div>
 
-        {/* Right column — Palette management */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {/* Approved Palette */}
-          <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '28px 30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                <div className="kicker">Approved Palette ({approvedColors.length})</div>
-                <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Colors allowed on creatives &amp; verified by AI</span>
-              </div>
+        {/* Right: Colour Governance */}
+        <div className="space-y-6">
+          {/* Approved Colours */}
+          <div className="saas-card space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Approved Palette</h2>
               <button
-                onClick={() => setShowAddColor(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: 'var(--paper)', border: '1px solid var(--rule)', color: 'var(--ink)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                type="button"
+                onClick={() => setShowAddColor(!showAddColor)}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <Plus style={{ width: 13, height: 13 }} /> Add Color
+                <Plus className="h-3 w-3" /> Add Colour
               </button>
             </div>
 
-            {/* Add color inline popup */}
             {showAddColor && (
-              <div style={{ padding: '14px', background: 'var(--paper)', border: '1px solid var(--rule)', marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <span className="kicker">New Approved Color</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={newColorHex}
-                    onChange={(e) => setNewColorHex(e.target.value)}
-                    style={{ width: 40, height: 36, padding: 2, background: 'transparent', border: '1px solid var(--rule)', cursor: 'pointer' }}
-                  />
-                  <input
-                    type="text"
-                    value={newColorHex}
-                    onChange={(e) => setNewColorHex(e.target.value)}
-                    placeholder="#HEX"
-                    style={{ width: 100, ...iStyle(), fontFamily: 'var(--font-mono)' }}
-                  />
-                  <input
-                    type="text"
-                    value={newColorName}
-                    onChange={(e) => setNewColorName(e.target.value)}
-                    placeholder="Color Name (e.g. Electric Cyan)"
-                    style={{ flex: 1, ...iStyle() }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button onClick={() => setShowAddColor(false)} style={ghostBtn()}>Cancel</button>
-                  <button onClick={handleAddApprovedColor} style={solidBtn()}>Add to Palette</button>
-                </div>
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <input
+                  type="color"
+                  value={newColorHex}
+                  onChange={(e) => setNewColorHex(e.target.value)}
+                  className="h-8 w-8 cursor-pointer rounded border border-slate-200 bg-white p-0.5"
+                />
+                <input
+                  type="text"
+                  placeholder="Name (e.g. Electric Cyan)"
+                  value={newColorName}
+                  onChange={(e) => setNewColorName(e.target.value)}
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddApprovedColor}
+                  className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Add
+                </button>
               </div>
             )}
 
-            {/* Color list */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {approvedColors.map((color) => {
-                const isEditing = editingId === color.id;
-
-                return (
-                  <div
-                    key={color.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      background: 'var(--paper)',
-                      border: '1px solid var(--rule)',
-                      gap: 12,
-                    }}
-                  >
-                    {isEditing ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <input
-                          type="color"
-                          value={editHex}
-                          onChange={(e) => setEditHex(e.target.value)}
-                          style={{ width: 32, height: 32, padding: 1, border: '1px solid var(--rule)', cursor: 'pointer' }}
+            <div className="space-y-2">
+              {approvedColors.map((color) => (
+                <div
+                  key={color.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5"
+                >
+                  {editingId === color.id ? (
+                    <div className="flex flex-1 items-center gap-2">
+                      <input
+                        type="color"
+                        value={editHex}
+                        onChange={(e) => setEditHex(e.target.value)}
+                        className="h-7 w-7 cursor-pointer rounded border border-slate-200"
+                      />
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="flex-1 rounded border border-slate-200 bg-white px-2 py-1 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={saveEditColor}
+                        className="rounded bg-emerald-600 p-1 text-white"
+                      >
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded border border-slate-200 bg-white p-1 text-slate-500"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-6 w-6 rounded-md border border-slate-300 shadow-xs"
+                          style={{ background: color.hex }}
                         />
-                        <input
-                          type="text"
-                          value={editHex}
-                          onChange={(e) => setEditHex(e.target.value)}
-                          style={{ width: 90, ...iStyle(), fontFamily: 'var(--font-mono)', padding: '5px 8px', fontSize: 12 }}
-                        />
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          style={{ flex: 1, ...iStyle(), padding: '5px 8px', fontSize: 12 }}
-                        />
-                        <button onClick={saveEditColor} style={{ padding: '6px', background: 'var(--btn-primary)', color: '#fff', border: '1px solid var(--rule-dark)', cursor: 'pointer' }} title="Save">
-                          <Check style={{ width: 14, height: 14 }} />
+                        <div>
+                          <div className="text-xs font-semibold text-slate-900">{color.name}</div>
+                          <div className="font-mono text-[10px] text-slate-400">{color.hex}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => startEditColor(color)}
+                          className="rounded p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => setEditingId(null)} style={{ padding: '6px', background: 'transparent', border: '1px solid var(--rule)', cursor: 'pointer' }} title="Cancel">
-                          <X style={{ width: 14, height: 14 }} />
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteApprovedColor(color.id)}
+                          className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                    ) : (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ width: 28, height: 28, background: color.hex, border: '1px solid var(--rule)' }} />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{color.name}</div>
-                            {color.role && color.role !== 'custom' && (
-                              <span className="kicker" style={{ marginTop: 1, color: 'var(--accent)' }}>
-                                {color.role}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-light)' }}>
-                            {color.hex}
-                          </span>
-                          <button
-                            onClick={() => startEditColor(color)}
-                            style={{ padding: '4px 6px', background: 'transparent', border: '1px solid var(--rule)', cursor: 'pointer', color: 'var(--ink-mid)' }}
-                            title="Edit color"
-                          >
-                            <Edit2 style={{ width: 11, height: 11 }} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteApprovedColor(color.id)}
-                            style={{ padding: '4px 6px', background: '#fef2f2', border: '1px solid #fca5a5', cursor: 'pointer', color: '#b91c1c' }}
-                            title="Delete color"
-                          >
-                            <Trash2 style={{ width: 11, height: 11 }} />
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Forbidden Colors */}
-          <div style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '28px 30px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                <div className="kicker" style={{ color: '#b91c1c' }}>Forbidden Tones ({forbiddenColors.length})</div>
-                <span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>Hues strictly flagged by Delta-E color distance</span>
-              </div>
+          {/* Forbidden Colours */}
+          <div className="saas-card space-y-4 p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Forbidden Hues</h2>
               <button
-                onClick={() => setShowAddForbidden(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 12px', background: '#fef2f2', border: '1px solid #fca5a5', color: '#b91c1c', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                type="button"
+                onClick={() => setShowAddForbidden(!showAddForbidden)}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
               >
-                <Plus style={{ width: 13, height: 13 }} /> Add Forbidden
+                <Plus className="h-3 w-3" /> Restrict Hue
               </button>
             </div>
 
-            {/* Add forbidden color inline popup */}
             {showAddForbidden && (
-              <div style={{ padding: '14px', background: '#fef2f2', border: '1px solid #fca5a5', marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <span className="kicker" style={{ color: '#b91c1c' }}>Add Forbidden Color Hex</span>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    type="color"
-                    value={newForbiddenHex}
-                    onChange={(e) => setNewForbiddenHex(e.target.value)}
-                    style={{ width: 40, height: 36, padding: 2, background: 'transparent', border: '1px solid #fca5a5', cursor: 'pointer' }}
-                  />
-                  <input
-                    type="text"
-                    value={newForbiddenHex}
-                    onChange={(e) => setNewForbiddenHex(e.target.value)}
-                    placeholder="#HEX"
-                    style={{ flex: 1, ...iStyle(), fontFamily: 'var(--font-mono)' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button onClick={() => setShowAddForbidden(false)} style={ghostBtn()}>Cancel</button>
-                  <button onClick={handleAddForbiddenColor} style={{ ...solidBtn(), background: '#b91c1c' }}>Add Forbidden</button>
-                </div>
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <input
+                  type="color"
+                  value={newForbiddenHex}
+                  onChange={(e) => setNewForbiddenHex(e.target.value)}
+                  className="h-8 w-8 cursor-pointer rounded border border-slate-200"
+                />
+                <span className="flex-1 font-mono text-xs text-slate-600">{newForbiddenHex}</span>
+                <button
+                  type="button"
+                  onClick={handleAddForbiddenColor}
+                  className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  Add
+                </button>
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {forbiddenColors.map((hex, idx) => (
+            <div className="flex flex-wrap gap-2">
+              {forbiddenColors.map((hex) => (
                 <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '10px 14px',
-                    background: '#fef2f2',
-                    border: '1px solid #fca5a5',
-                  }}
+                  key={hex}
+                  className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50/60 py-1 pl-1.5 pr-2.5"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 26, height: 26, background: hex, border: '1px solid #fca5a5' }} />
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#b91c1c' }}>Prohibited #{idx + 1}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#b91c1c' }}>{hex}</span>
-                    <button
-                      onClick={() => handleDeleteForbiddenColor(hex)}
-                      style={{ padding: '4px 6px', background: 'transparent', border: '1px solid #fca5a5', cursor: 'pointer', color: '#b91c1c' }}
-                      title="Remove forbidden"
-                    >
-                      <Trash2 style={{ width: 11, height: 11 }} />
-                    </button>
-                  </div>
+                  <span
+                    className="h-4 w-4 rounded-full border border-rose-300"
+                    style={{ background: hex }}
+                  />
+                  <span className="font-mono text-[11px] text-rose-800">{hex}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteForbiddenColor(hex)}
+                    className="btn-plain text-rose-500 hover:text-rose-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -430,42 +384,5 @@ const BrandPage: React.FC<BrandPageProps> = ({ brand, onUpdateBrand }) => {
     </div>
   );
 };
-
-function iStyle(): React.CSSProperties {
-  return {
-    width: '100%',
-    padding: '9px 12px',
-    fontSize: 13,
-    border: '1px solid var(--rule)',
-    background: 'var(--paper)',
-    color: 'var(--ink)',
-    outline: 'none',
-    fontFamily: 'var(--font-sans)',
-  };
-}
-
-function ghostBtn(): React.CSSProperties {
-  return {
-    padding: '6px 14px',
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: 'pointer',
-    background: 'transparent',
-    color: 'var(--ink-mid)',
-    border: '1px solid var(--rule)',
-  };
-}
-
-function solidBtn(): React.CSSProperties {
-  return {
-    padding: '6px 16px',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    background: 'var(--btn-primary)',
-    color: 'var(--white)',
-    border: '1px solid var(--rule-dark)',
-  };
-}
 
 export default BrandPage;

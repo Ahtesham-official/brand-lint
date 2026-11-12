@@ -6,16 +6,13 @@ interface AuditPageProps {
   auditLogs: AuditLog[];
 }
 
-const ACTION_META: Record<
-  AuditLog['action'],
-  { label: string; icon: React.ElementType }
-> = {
+const ACTION_META: Record<AuditLog['action'], { label: string; icon: React.ElementType }> = {
   guideline_extracted: { label: 'Guideline Extracted', icon: FileText },
   guideline_confirmed: { label: 'Guideline Confirmed', icon: CheckSquare },
-  rule_updated: { label: 'Rule Updated', icon: Shield },
-  submission_created: { label: 'Submission Created', icon: Upload },
+  rule_updated:        { label: 'Rule Updated',        icon: Shield },
+  submission_created:  { label: 'Submission Created',  icon: Upload },
   submission_analyzed: { label: 'Submission Analyzed', icon: Search },
-  fix_applied: { label: 'Fix Applied', icon: Wrench },
+  fix_applied:         { label: 'Fix Applied',         icon: Wrench },
   submission_reviewed: { label: 'Submission Reviewed', icon: AlertCircle },
 };
 
@@ -35,76 +32,75 @@ export const AuditPage: React.FC<AuditPageProps> = ({ auditLogs }) => {
   );
 
   return (
-    <div style={{ maxWidth: 860, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="mx-auto max-w-5xl space-y-6 font-sans text-slate-900">
       {/* ── Page Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 36, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
-        <div>
-          <div className="kicker-accent" style={{ marginBottom: 8 }}>Immutable Record</div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 34, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1 }}>
-            Audit Log
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
-            {sorted.length} recorded events tracking brand guideline changes, analysis runs, and decisions.
-          </p>
-        </div>
+      <div className="border-b border-slate-200 pb-6">
+        <span className="kicker-accent mb-1.5">Immutable Record</span>
+        <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">
+          Audit Log
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          {sorted.length} recorded events tracking guideline updates, AI analysis runs, and human decisions.
+        </p>
       </div>
 
       {sorted.length === 0 ? (
-        <div style={{ padding: '64px 24px', textAlign: 'center', background: 'var(--white)', border: '1px solid var(--rule)' }}>
-          <p style={{ fontSize: 14, color: 'var(--ink-faint)', margin: 0 }}>No audit entries recorded yet.</p>
+        <div className="saas-card p-16 text-center">
+          <FileText className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+          <p className="text-sm font-medium text-slate-600">No audit entries recorded yet.</p>
         </div>
       ) : (
-        <div style={{ background: 'var(--white)', border: '1px solid var(--rule)' }}>
-          <table className="ed-table">
-            <thead>
-              <tr>
-                <th>Action</th>
-                <th>Actor</th>
-                <th>Entity Reference</th>
-                <th style={{ textAlign: 'right' }}>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((log) => {
-                const meta = ACTION_META[log.action] ?? {
-                  label: log.action,
-                  icon: FileText,
-                };
-                const Icon = meta.icon;
+        <div className="saas-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="ed-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Actor</th>
+                  <th>Entity Reference</th>
+                  <th className="text-right">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((log) => {
+                  const meta = ACTION_META[log.action] ?? {
+                    label: log.action,
+                    icon: FileText,
+                  };
+                  const Icon = meta.icon;
 
-                return (
-                  <tr key={log.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 28, height: 28, background: 'var(--paper-mid)', border: '1px solid var(--rule)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <Icon style={{ width: 13, height: 13, color: 'var(--ink-mid)' }} />
+                  return (
+                    <tr key={log.id}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50">
+                            <Icon className="h-3.5 w-3.5 text-slate-600" />
+                          </div>
+                          <span className="text-xs font-semibold text-slate-900">{meta.label}</span>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink)' }}>{meta.label}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div>
-                        <span style={{ fontSize: 13, color: 'var(--ink)' }}>{log.actor_name}</span>
-                        <span className="kicker" style={{ marginTop: 2 }}>{log.actor_role}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-light)' }}>
-                        {log.entity}:{log.entity_id.slice(0, 16)}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--ink-faint)' }}>
-                      {formatTimestamp(log.created_at)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-slate-800">{log.actor_name}</span>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-[9px] uppercase text-slate-500">
+                            {log.actor_role}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="font-mono text-xs text-slate-500">{log.entity_id}</span>
+                      </td>
+                      <td className="text-right font-mono text-xs text-slate-400">
+                        {formatTimestamp(log.created_at)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
   );
 };
-
-export default AuditPage;

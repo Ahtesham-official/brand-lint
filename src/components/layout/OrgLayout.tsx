@@ -57,105 +57,63 @@ export const OrgLayout: React.FC<OrgLayoutProps> = ({
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--paper)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="flex min-h-screen flex-col bg-[#F9FAFB] font-sans text-slate-900">
       <Head>
         <title>{title} — BrandLint Organisations</title>
       </Head>
 
-      {/* Top Editorial Masthead / Header */}
-      <header style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
-        background: 'var(--white)',
-        borderBottom: '1px solid var(--rule)',
-        padding: '14px 24px',
-      }}>
-        <div style={{ maxWidth: 1160, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
-              <Image src="/brandlint-mark.png" alt="" width={168} height={120} priority style={{ width: 'auto', height: 34, objectFit: 'contain', flexShrink: 0 }} />
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 18, color: 'var(--ink)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  BrandLint
-                </span>
-                <span className="kicker" style={{ fontSize: 9, color: 'var(--ink-faint)' }}>
-                  Workspace Governance
-                </span>
-              </div>
+      {/* Top Sticky SaaS Header */}
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5">
+          <div className="flex items-center gap-5">
+            <Link href="/?view=workspaces" className="flex items-center gap-2.5 text-slate-900 no-underline">
+              <Image
+                src="/brandlint-mark.png"
+                alt="BrandLint"
+                width={168}
+                height={120}
+                priority
+                className="h-7 w-auto shrink-0 object-contain"
+              />
+              <span className="font-serif text-lg font-bold tracking-tight text-slate-900">
+                BrandLint
+              </span>
             </Link>
 
-            <div style={{ height: 16, width: 1, background: 'var(--rule)' }} />
+            <div className="hidden h-4 w-px bg-slate-200 sm:block" />
 
-            <nav style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <nav className="hidden items-center gap-2 text-xs sm:flex">
               <Link
-                href="/"
-                style={{
-                  color: 'var(--ink-mid)',
-                  textDecoration: 'none',
-                  fontWeight: 500,
-                  padding: '4px 8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                }}
+                href="/?view=workspaces"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
               >
-                <ArrowLeft style={{ width: 12, height: 12 }} />
-                Main Console
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Workspaces
               </Link>
-              <span style={{ color: 'var(--ink-faint)' }}>/</span>
+              <span className="text-slate-300">/</span>
               <Link
                 href="/orgs"
-                style={{
-                  color: 'var(--accent)',
-                  textDecoration: 'none',
-                  fontWeight: 700,
-                  padding: '4px 8px',
-                  background: 'var(--accent-bg)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-1.5 font-semibold text-sky-700"
               >
-                <Building2 style={{ width: 13, height: 13 }} />
+                <Building2 className="h-3.5 w-3.5" />
                 Organisations
               </Link>
             </nav>
           </div>
 
-          {/* User selector */}
           {isClient && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className="kicker" style={{ fontSize: 10 }}>Active Account:</span>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'var(--paper)',
-                border: '1px solid var(--rule)',
-                padding: '4px 10px',
-              }}>
-                <div style={{
-                  width: 20, height: 20,
-                  background: 'var(--paper-mid)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700,
-                  fontFamily: 'var(--font-serif)',
-                  border: '1px solid var(--rule)',
-                }}>
+            <div className="flex items-center gap-2.5">
+              <span className="hidden text-[11px] font-medium text-slate-400 sm:inline">
+                Demo Profile:
+              </span>
+              <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1">
+                <div className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white font-serif text-[10px] font-bold text-slate-700">
                   {currentUser.name[0]}
                 </div>
                 <select
                   value={currentUser.id}
                   onChange={(e) => handleUserChange(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--ink)',
-                    border: 'none',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                  }}
+                  className="cursor-pointer bg-transparent text-xs font-semibold text-slate-900 outline-none"
                 >
                   {SEEDED_USERS.map((u) => (
                     <option key={u.id} value={u.id}>
@@ -170,55 +128,40 @@ export const OrgLayout: React.FC<OrgLayoutProps> = ({
       </header>
 
       {/* Main Container */}
-      <main style={{ flex: 1, maxWidth: 1160, width: '100%', margin: '0 auto', padding: '36px 24px' }}>
-        {/* Breadcrumbs */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
         {breadcrumbs.length > 0 && (
-          <nav style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-light)', marginBottom: 20 }}>
-            <Link href="/orgs" style={{ color: 'var(--ink-mid)', textDecoration: 'none' }}>
+          <nav className="mb-5 flex items-center gap-1.5 text-xs text-slate-500">
+            <Link href="/orgs" className="hover:text-slate-900">
               Organisations
             </Link>
             {breadcrumbs.map((crumb, idx) => (
               <React.Fragment key={idx}>
-                <ChevronRight style={{ width: 12, height: 12, color: 'var(--ink-faint)' }} />
+                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                 {crumb.href ? (
-                  <Link href={crumb.href} style={{ color: 'var(--ink-mid)', textDecoration: 'none' }}>
+                  <Link href={crumb.href} className="hover:text-slate-900">
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{crumb.label}</span>
+                  <span className="font-semibold text-slate-900">{crumb.label}</span>
                 )}
               </React.Fragment>
             ))}
           </nav>
         )}
 
-        {/* Page Header (Swiss Editorial) */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-          marginBottom: 32,
-          paddingBottom: 24,
-          borderBottom: '1px solid var(--rule)',
-        }}>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
-            <span className="kicker-accent" style={{ marginBottom: 6 }}>Governance & Tenants</span>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 32, fontWeight: 900, color: 'var(--ink)', letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15 }}>
+            <span className="kicker-accent mb-1.5">Tenant Governance</span>
+            <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">
               {title}
             </h1>
             {subtitle && (
-              <p style={{ fontSize: 14, color: 'var(--ink-mid)', marginTop: 8, maxWidth: 640 }}>
-                {subtitle}
-              </p>
+              <p className="mt-1.5 max-w-2xl text-sm text-slate-500">{subtitle}</p>
             )}
           </div>
-          {actions && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{actions}</div>}
+          {actions && <div className="flex items-center gap-2.5">{actions}</div>}
         </div>
 
-        {/* Page Content */}
         {children}
       </main>
     </div>
