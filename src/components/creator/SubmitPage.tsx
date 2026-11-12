@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Sparkles,
   Send,
@@ -7,12 +8,12 @@ import {
   Video,
   Image as ImageIcon,
   Upload,
-  Play,
   CheckCircle,
 } from 'lucide-react';
 import type { Brand, Submission } from '@/types';
 import { DEMO_SUBMISSION_INITIAL } from '@/data/seedData';
 import { api } from '@/lib/api';
+import { SPRING_SNAPPY } from '@/components/motion/MotionPrimitives';
 
 interface SubmitPageProps {
   brand: Brand;
@@ -27,19 +28,6 @@ interface SubmitPageProps {
   onSelectSubmission: (id: string) => void;
   onLoadDemoData?: () => Promise<void> | void;
 }
-
-const PRESET_POSTERS = [
-  {
-    name: 'Festive Wireless Earbuds Campaign',
-    url: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80',
-    ocr: "INDIA'S #1 SOUND\nNOW WITH 24-MONTH WARRANTY\nUNBEATABLE BASS",
-  },
-  {
-    name: 'Studio Wireless Headphones Campaign',
-    url: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80',
-    ocr: "APEX ACOUSTICS\nPRECISION SOUND FOR AUDIOPHILES",
-  },
-];
 
 const PRESET_VIDEOS = [
   {
@@ -77,10 +65,10 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
   const [showOcr, setShowOcr] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadedImageName, setUploadedImageName] = useState<string | null>(null);
+  const [extractingVideo, setExtractingVideo] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const maxCaption = 1000;
-
-  const [extractingVideo, setExtractingVideo] = useState(false);
 
   const performVideoExtraction = async (url: string, videoTitle: string, hint?: string) => {
     setExtractingVideo(true);
@@ -120,12 +108,6 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
     }
   };
 
-  const handleSelectPosterPreset = (preset: (typeof PRESET_POSTERS)[0]) => {
-    setImageUrl(preset.url);
-    setUploadedImageName(null);
-    if (!ocrText) setOcrText(preset.ocr);
-  };
-
   const handleSelectVideoPreset = (preset: (typeof PRESET_VIDEOS)[0]) => {
     setTitle(preset.name);
     setVideoUrl(preset.url);
@@ -140,7 +122,7 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
       setVideoUrl(localUrl);
       const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
       setTitle(cleanName);
-      setOcrText(''); // Clear existing demo preset text immediately so user sees real-time progress
+      setOcrText('');
       performVideoExtraction(localUrl, cleanName, undefined);
     }
   };
@@ -158,7 +140,7 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
 
       const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
       setUploadedImageName(file.name);
-      if (!title || PRESET_POSTERS.some((p) => p.name === title) || PRESET_VIDEOS.some((p) => p.name === title)) {
+      if (!title || PRESET_VIDEOS.some((p) => p.name === title)) {
         setTitle(cleanName);
       }
     }
@@ -166,13 +148,14 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mediaType === 'image' && !caption.trim()) return;
-    if (mediaType === 'image' && !imageUrl.trim()) return;
+    if (mediaType === 'image' && (!caption.trim() || !imageUrl.trim())) return;
     if (mediaType === 'video' && !videoUrl.trim() && !imageUrl.trim()) return;
 
     setLoading(true);
     try {
-      const finalImage = imageUrl.trim() || 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80';
+      const finalImage =
+        imageUrl.trim() ||
+        'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=800&auto=format&fit=crop&q=80';
       const result = await onCreateSubmission({
         title: title.trim() || (mediaType === 'video' ? 'Video Campaign Submission' : 'Campaign Submission'),
         caption: mediaType === 'video' ? '' : caption.trim(),
@@ -190,385 +173,282 @@ const SubmitPage: React.FC<SubmitPageProps> = ({
     }
   };
 
-  const iStyle = () => ({
-    width: '100%',
-    padding: '11px 14px',
-    fontSize: 13,
-    border: '1px solid var(--rule-dark)',
-    background: 'var(--paper)',
-    color: 'var(--ink)',
-    outline: 'none',
-    fontFamily: 'var(--font-sans)',
-    borderRadius: 'var(--radius-btn)',
-  });
-
   return (
-    <div style={{ maxWidth: 840, margin: '0 auto', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
-      {/* ── Page Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid var(--rule)' }}>
+    <div className="mx-auto max-w-5xl space-y-6 font-sans text-slate-900">
+      {/* ── Header ── */}
+      <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end">
         <div>
-          <div className="kicker-accent" style={{ marginBottom: 6 }}>Creator Workspace</div>
-          <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 900, fontSize: 32, letterSpacing: '-0.02em', margin: 0, color: 'var(--ink)', lineHeight: 1.15 }}>
-            New Content Check
+          <span className="kicker-accent mb-1.5">Creator Studio</span>
+          <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">
+            New Compliance Check
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--ink-light)', marginTop: 8, fontWeight: 300 }}>
-            Submit video commercials or social posters for multi-modal AI brand compliance review.
+          <p className="mt-1 text-sm text-slate-500">
+            Submit marketing posters, captions, or video commercials for <strong className="font-medium text-slate-800">{brand.name}</strong>.
           </p>
         </div>
+
         <button
           type="button"
           onClick={handleLoadDemo}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '9px 16px',
-            background: 'var(--white)',
-            color: 'var(--accent)',
-            border: '1px solid var(--accent)',
-            cursor: 'pointer',
-            fontSize: 12,
-            fontWeight: 700,
-            borderRadius: 'var(--radius-btn)',
-            boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
-          }}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50"
         >
-          <Sparkles style={{ width: 14, height: 14 }} /> Load Demo Violation
+          <Sparkles className="h-3.5 w-3.5 text-sky-600" />
+          Load Demo Violation
         </button>
       </div>
 
-      {/* ── Media Type Switcher ── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+      {/* ── Media Type Switcher with Animated Pill ── */}
+      <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-xs">
         <button
           type="button"
-          onClick={() => {
-            setMediaType('video');
-            if (!videoUrl && PRESET_VIDEOS[0]) {
-              setVideoUrl(PRESET_VIDEOS[0].url);
-              setImageUrl(PRESET_VIDEOS[0].poster);
-              setOcrText(PRESET_VIDEOS[0].ocr);
-              if (!title) setTitle(PRESET_VIDEOS[0].name);
-            }
-          }}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            padding: '12px 16px',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: mediaType === 'video' ? 'var(--paper-mid)' : 'var(--white)',
-            color: mediaType === 'video' ? 'var(--accent)' : 'var(--ink)',
-            border: `1.5px solid ${mediaType === 'video' ? 'var(--accent)' : 'var(--rule)'}`,
-            borderRadius: 'var(--radius-btn)',
-            boxShadow: mediaType === 'video' ? '3px 3px 0px var(--btn-shadow)' : 'none',
-          }}
+          onClick={() => setMediaType('video')}
+          className={`btn-plain relative inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
+            mediaType === 'video' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          <Video style={{ width: 16, height: 16 }} />
-          <span>Video Commercial (AI Frame &amp; Audio Audit)</span>
+          {mediaType === 'video' && (
+            <motion.span
+              layoutId="submit-media-tab"
+              transition={SPRING_SNAPPY}
+              className="absolute inset-0 rounded-lg bg-slate-900"
+            />
+          )}
+          <Video className="relative z-10 h-3.5 w-3.5" />
+          <span className="relative z-10">Video Commercial</span>
         </button>
-
         <button
           type="button"
           onClick={() => setMediaType('image')}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            padding: '12px 16px',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            background: mediaType === 'image' ? 'var(--paper-mid)' : 'var(--white)',
-            color: mediaType === 'image' ? 'var(--accent)' : 'var(--ink)',
-            border: `1.5px solid ${mediaType === 'image' ? 'var(--accent)' : 'var(--rule)'}`,
-            borderRadius: 'var(--radius-btn)',
-            boxShadow: mediaType === 'image' ? '3px 3px 0px var(--btn-shadow)' : 'none',
-          }}
+          className={`btn-plain relative inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors ${
+            mediaType === 'image' ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+          }`}
         >
-          <ImageIcon style={{ width: 16, height: 16 }} />
-          <span>Poster Graphic (Static Image + Caption Copy)</span>
+          {mediaType === 'image' && (
+            <motion.span
+              layoutId="submit-media-tab"
+              transition={SPRING_SNAPPY}
+              className="absolute inset-0 rounded-lg bg-slate-900"
+            />
+          )}
+          <ImageIcon className="relative z-10 h-3.5 w-3.5" />
+          <span className="relative z-10">Static Poster &amp; Copy</span>
         </button>
       </div>
 
-      {/* ── Form Card ── */}
-      <form onSubmit={handleSubmit} style={{ background: 'var(--white)', border: '1px solid var(--rule)', padding: '32px', display: 'flex', flexDirection: 'column', gap: 24, boxShadow: '3px 3px 0px var(--btn-shadow)', borderRadius: 'var(--radius-btn)' }}>
-        {/* Title */}
-        <div>
-          <label className="kicker" style={{ marginBottom: 6 }}>Campaign / Video Title *</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={mediaType === 'video' ? 'e.g. Apex Diwali Video Commercial Spot' : 'e.g. Diwali Festive Launch Campaign — Wireless Earbuds'}
-            required
-            autoFocus
-            style={iStyle()}
-          />
-        </div>
-
-        {/* Caption (Only for Static Posters) */}
-        {mediaType === 'image' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label className="kicker">Marketing Caption *</label>
-              <span className="kicker" style={{ color: caption.length > maxCaption ? '#b91c1c' : 'var(--ink-faint)' }}>
-                {caption.length} / {maxCaption}
-              </span>
-            </div>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              placeholder="Write or paste your poster caption copy here..."
-              rows={5}
-              required
-              style={{ ...iStyle(), resize: 'vertical', lineHeight: 1.6 }}
-            />
-          </div>
-        )}
-
-        {/* Media Asset Inputs */}
-        {mediaType === 'video' ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <label className="kicker">Select Video Commercial to Analyze</label>
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--accent)',
-                  cursor: 'pointer',
-                }}
-              >
-                <Upload style={{ width: 13, height: 13 }} />
-                <span>Upload Custom Local Video</span>
-                <input
-                  type="file"
-                  accept="video/mp4,video/webm,video/quicktime"
-                  onChange={handleVideoFileUpload}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-
-            {/* Presets */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
-              {PRESET_VIDEOS.map((preset) => {
-                const isSelected = !!videoUrl && videoUrl === preset.url;
-                return (
-                  <div
-                    key={preset.name}
-                    onClick={() => handleSelectVideoPreset(preset)}
-                    style={{
-                      padding: '12px 14px',
-                      background: isSelected ? 'var(--paper)' : 'var(--white)',
-                      border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--rule)'}`,
-                      borderRadius: 'var(--radius-btn)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    <div style={{ width: 44, height: 44, background: 'var(--ink)', borderRadius: 'var(--radius-btn)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fef3c7', flexShrink: 0 }}>
-                      <Play style={{ width: 16, height: 16, marginLeft: 2 }} />
-                    </div>
-                    <div style={{ overflow: 'hidden', flex: 1 }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
-                        {preset.name}
-                      </p>
-                      <span className="kicker" style={{ marginTop: 2, color: 'var(--ink-faint)' }}>
-                        Target: {preset.url.split('/').pop()}
-                      </span>
-                    </div>
-                    {isSelected && (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>Selected</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="Or enter direct video stream URL (.mp4 / .webm)"
-              style={iStyle()}
-            />
-          </div>
-        ) : (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: 'var(--accent)',
-                  cursor: 'pointer',
-                  padding: '9px 18px',
-                  background: 'var(--white)',
-                  border: '1px solid var(--accent)',
-                  borderRadius: 'var(--radius-btn)',
-                  boxShadow: '2px 2px 0px var(--btn-shadow)',
-                }}
-              >
-                <Upload style={{ width: 14, height: 14 }} />
-                <span>Upload Custom Image</span>
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={handleImageFileUpload}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-
-            {uploadedImageName && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '10px 14px',
-                  background: 'var(--paper-mid)',
-                  border: '1.5px solid var(--accent)',
-                  borderRadius: 'var(--radius-btn)',
-                  marginBottom: 12,
-                }}
-              >
-                <img
-                  src={imageUrl}
-                  alt="Uploaded preview"
-                  style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 'var(--radius-btn)' }}
-                />
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, margin: 0, color: 'var(--ink)' }}>
-                    {uploadedImageName}
-                  </p>
-                  <span className="kicker" style={{ marginTop: 2, color: 'var(--accent)' }}>
-                    Custom Uploaded Image (Selected)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUploadedImageName(null);
-                    setImageUrl('');
-                  }}
-                  className="btn-plain"
-                  style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-faint)', cursor: 'pointer' }}
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-
-            <input
-              type="text"
-              value={uploadedImageName ? `[Uploaded file: ${uploadedImageName}]` : imageUrl}
-              onChange={(e) => {
-                setImageUrl(e.target.value);
-                setUploadedImageName(null);
-              }}
-              placeholder="Or enter image URL (https://...)"
-              style={iStyle()}
-              readOnly={!!uploadedImageName}
-            />
-          </div>
-        )}
-
-        {/* OCR / Video frame transcription drawer */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <button
-              type="button"
-              onClick={() => setShowOcr(!showOcr)}
-              className="btn-plain"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 700,
-                color: 'var(--accent)',
-                cursor: 'pointer',
-                padding: 0,
-              }}
-            >
-              <ScanText style={{ width: 14, height: 14 }} />
-              <span>
-                {showOcr ? 'Hide' : 'Show'}{' '}
-                {mediaType === 'video'
-                  ? 'Extracted Video Frame Text & Audio Transcription (OCR / Whisper)'
-                  : 'On-Screen Poster Text (OCR / Visual Text)'}
-              </span>
-            </button>
-            {extractingVideo && (
-              <span style={{ fontSize: 11, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Loader2 style={{ width: 12, height: 12 }} className="animate-spin" />
-                Extracting OCR &amp; Audio tracks...
-              </span>
-            )}
-          </div>
-
-          {showOcr && (
-            <div style={{ marginTop: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--ink-faint)', margin: '0 0 6px' }}>
-                Extracted directly from keyframes and audio tracks (sent to AI multi-modal check engine):
-              </p>
-              <textarea
-                value={ocrText}
-                onChange={(e) => setOcrText(e.target.value)}
-                placeholder="Extracted on-screen text or audio speech..."
-                rows={5}
-                style={{ ...iStyle(), fontFamily: 'var(--font-mono)', fontSize: 12 }}
+      {/* ── Form & Preview Grid ── */}
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        <div className="space-y-5 lg:col-span-7">
+          <div className="saas-card space-y-5 p-6">
+            <div>
+              <label className="kicker mb-1.5">Campaign Title</label>
+              <input
+                type="text"
+                placeholder={mediaType === 'video' ? 'e.g. Apex Earbuds Launch Commercial' : 'e.g. Festive Wireless Earbuds Ad'}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
               />
             </div>
-          )}
-        </div>
 
-        {/* Submit Button */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--rule)' }}>
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '12px 24px',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              boxShadow: '2.5px 2.5px 0px var(--btn-shadow)',
-            }}
-          >
-            {loading ? (
+            {mediaType === 'image' ? (
               <>
-                <Loader2 style={{ width: 15, height: 15 }} className="animate-spin" />
-                <span>Running Video AI Analysis...</span>
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label className="kicker">Marketing Caption *</label>
+                    <span className="font-mono text-[10px] text-slate-400">
+                      {caption.length} / {maxCaption}
+                    </span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    maxLength={maxCaption}
+                    placeholder="Enter social copy, ad headline, or product claims to verify against active rules..."
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    required
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:bg-white"
+                  />
+                </div>
+
+                {/* Centered Upload Image Button with Drag-and-Drop Feedback */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type.startsWith('image/')) {
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        if (typeof reader.result === 'string') setImageUrl(reader.result);
+                      };
+                      reader.readAsDataURL(file);
+                      setUploadedImageName(file.name);
+                      if (!title) setTitle(file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center rounded-xl border border-dashed px-6 py-6 text-center transition-all ${
+                    isDragging
+                      ? 'scale-[1.01] border-sky-500 bg-sky-50/70'
+                      : 'border-slate-300 bg-slate-50/60'
+                  }`}
+                >
+                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800">
+                    <Upload className="h-3.5 w-3.5" />
+                    {uploadedImageName ? 'Replace Poster Image' : 'Upload Poster Image'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {uploadedImageName ? (
+                      <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                        <CheckCircle className="h-3.5 w-3.5" /> {uploadedImageName}
+                      </span>
+                    ) : (
+                      'PNG, JPG, or WEBP up to 25MB'
+                    )}
+                  </p>
+                </div>
               </>
             ) : (
               <>
-                <Send style={{ width: 14, height: 14 }} />
-                <span>{mediaType === 'video' ? 'Run Video AI Compliance Check' : 'Run Brand Compliance Check'}</span>
+                <div>
+                  <label className="kicker mb-2">Upload Video or Select Sample</label>
+                  <div className="flex flex-col gap-3">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-xs font-semibold text-slate-700 transition-colors hover:border-sky-400 hover:bg-sky-50/40">
+                      <Upload className="h-4 w-4 text-sky-600" />
+                      Upload Local Video (.mp4, .mov, .webm)
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-medium text-slate-400">Or select a preset demo commercial:</span>
+                      {PRESET_VIDEOS.map((preset) => (
+                        <button
+                          key={preset.url}
+                          type="button"
+                          onClick={() => handleSelectVideoPreset(preset)}
+                          className={`btn-plain flex w-full items-center justify-between rounded-lg border px-3.5 py-2.5 text-left text-xs transition-colors ${
+                            videoUrl === preset.url
+                              ? 'border-sky-500 bg-sky-50/70 font-semibold text-slate-900'
+                              : 'border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="truncate">{preset.name}</span>
+                          {videoUrl === preset.url && (
+                            <CheckCircle className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </>
             )}
-          </button>
+
+            {/* Optional OCR / Transcript */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowOcr(!showOcr)}
+                className="btn-plain inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+              >
+                <ScanText className="h-3.5 w-3.5 text-sky-600" />
+                {showOcr ? 'Hide' : 'Show'} Extracted OCR / Audio Transcript
+                {extractingVideo && <Loader2 className="h-3 w-3 animate-spin text-sky-600" />}
+              </button>
+
+              {showOcr && (
+                <textarea
+                  rows={4}
+                  value={ocrText}
+                  onChange={(e) => setOcrText(e.target.value)}
+                  placeholder="On-screen poster text or extracted video audio transcript..."
+                  className="mt-2.5 w-full rounded-lg border border-slate-200 bg-slate-50 p-3 font-mono text-xs text-slate-800 outline-none focus:border-sky-500 focus:bg-white"
+                />
+              )}
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={
+                  loading ||
+                  (mediaType === 'image' && (!caption.trim() || !imageUrl.trim())) ||
+                  (mediaType === 'video' && !videoUrl.trim() && !imageUrl.trim())
+                }
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-xs transition-all hover:bg-slate-800"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Running AI Brand Compliance Audit…
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Run Compliance Check
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Live Preview */}
+        <div className="lg:col-span-5">
+          <div className="saas-card overflow-hidden">
+            <div className="border-b border-slate-100 px-5 py-3.5">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Asset Preview
+              </h2>
+            </div>
+            <div className="p-5">
+              {mediaType === 'video' && videoUrl ? (
+                <video
+                  src={videoUrl}
+                  poster={imageUrl || undefined}
+                  controls
+                  className="aspect-video w-full rounded-xl border border-slate-200 bg-slate-950 object-cover"
+                />
+              ) : imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  className="max-h-80 w-full rounded-xl border border-slate-200 object-cover"
+                />
+              ) : (
+                <div className="flex aspect-video flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-400">
+                  {mediaType === 'video' ? (
+                    <Video className="mb-2 h-8 w-8 text-slate-300" />
+                  ) : (
+                    <ImageIcon className="mb-2 h-8 w-8 text-slate-300" />
+                  )}
+                  Upload an asset or load the demo violation to preview it here.
+                </div>
+              )}
+
+              {mediaType === 'image' && caption && (
+                <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs leading-relaxed text-slate-700">
+                  {caption}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </form>
     </div>

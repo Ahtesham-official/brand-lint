@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
+import { AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
+import { PageTransition } from '@/components/motion/MotionPrimitives';
 import { store } from '@/lib/store';
 import {
   User,
@@ -28,6 +30,7 @@ import { DemoGuideModal } from '@/components/demo/DemoGuideModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { GroqKeyModal } from '@/components/demo/GroqKeyModal';
 import { LandingPage } from '@/components/landing/LandingPage';
+import { DashboardPage } from '@/components/dashboard/DashboardPage';
 import { DEMO_SUBMISSION_INITIAL, SEEDED_USERS } from '@/data/seedData';
 
 const DEFAULT_PAGE: Record<UserRole, Page> = {
@@ -60,6 +63,7 @@ export default function Home() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isGroqModalOpen, setIsGroqModalOpen] = useState(false);
   const [groqActive, setGroqActive] = useState(false);
+  const [orgError, setOrgError] = useState<string | null>(null);
 
   // Sync activeOrgId from URL query param (?org=...)
   useEffect(() => {
@@ -76,11 +80,15 @@ export default function Home() {
   // Sync brand and user role when entering an organisation
   useEffect(() => {
     if (activeOrgId) {
+      setOrgError(null);
       fetch(`/api/orgs/${activeOrgId}?userId=${encodeURIComponent(currentUser.id)}`, {
         headers: { 'x-user-id': currentUser.id },
       })
-        .then((res) => res.json())
-        .then((data) => {
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Unable to load organisation workspace.');
+          }
           if (data.organization) {
             setBrand((prev) => ({
               ...prev,
@@ -96,7 +104,9 @@ export default function Home() {
             }
           }
         })
-        .catch(() => {});
+        .catch((err: any) => {
+          setOrgError(err?.message || 'Failed to load organisation details.');
+        });
     }
   }, [activeOrgId, currentUser.id]);
 
@@ -533,11 +543,37 @@ export default function Home() {
             handleRoleChange('reviewer');
           }}
           onSubmitReview={handleSubmitReview}
+          onRecalculate={async (subId) => {
+            try {
+              const res = await api.analyzeSubmission(subId, activeSubmission.ocr_text);
+              setIssues(res.issues);
+              await refreshFromServer();
+            } catch (err) {
+              console.error('Recalculate failed:', err);
+            }
+          }}
         />
       );
     }
 
     switch (activePage) {
+      case 'dashboard':
+        return (
+          <DashboardPage
+            brand={brand}
+            currentUser={currentUser}
+            activeOrgId={activeOrgId}
+            rules={rules}
+            facts={facts}
+            submissions={submissions}
+            auditLogs={auditLogs}
+            onNavigate={(page) => {
+              setActivePage(page);
+              setSelectedSubmissionId(null);
+            }}
+            onSelectSubmission={handleSelectSubmission}
+          />
+        );
       case 'guidelines':
         return (
           <GuidelinesPage
@@ -636,11 +672,12 @@ export default function Home() {
 
   // Inside an organisation: Sidebar is VISIBLE
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--paper)', fontFamily: 'var(--font-sans)', color: 'var(--ink)' }}>
+    <div className="flex min-h-screen bg-[#F9FAFB] font-sans text-slate-900">
       <Sidebar
         brand={brand}
         currentUser={currentUser}
         activePage={activePage}
+        activeOrgId={activeOrgId}
         onNavigate={(page) => {
           setActivePage(page);
           setSelectedSubmissionId(null);
@@ -656,8 +693,26 @@ export default function Home() {
         onExitOrg={handleExitOrg}
       />
 
-      <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', background: 'var(--paper)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px' }}>{renderPage()}</div>
+      <main className="min-w-0 flex-1 overflow-y-auto pt-16 lg:pt-0">
+        <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+          {orgError && (
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-800">
+              <span>{orgError}</span>
+              <button
+                type="button"
+                onClick={handleExitOrg}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700"
+              >
+                Return to Workspaces
+              </button>
+            </div>
+          )}
+          <AnimatePresence mode="wait" initial={false}>
+            <PageTransition key={activeSubmission ? activeSubmission.id : activePage}>
+              {renderPage()}
+            </PageTransition>
+          </AnimatePresence>
+        </div>
       </main>
 
       {/* Demo Guide Modal */}
