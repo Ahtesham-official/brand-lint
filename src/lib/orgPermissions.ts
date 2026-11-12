@@ -14,26 +14,34 @@ export interface PermissionCheckResult {
 const VALID_DEMO_USER_IDS = new Set(SEEDED_USERS.map((u) => u.id));
 
 /**
+ * Returns true for any user ID that is either:
+ *  - a known seeded demo user, OR
+ *  - a dynamically-created actual-project user (prefix "usr-")
+ */
+function isValidUserId(id: string): boolean {
+  return VALID_DEMO_USER_IDS.has(id) || id.startsWith('usr-');
+}
+
+/**
  * Extracts requesting user ID from headers, query, or body.
- * Strictly validates against allowed demo user IDs.
- * Rejects unknown demo profile IDs.
+ * Accepts seeded demo user IDs as well as real (actual-project) user IDs.
  */
 export function getRequestUserId(req: NextApiRequest): string | null {
   const headerUser = req.headers['x-user-id'];
   if (typeof headerUser === 'string' && headerUser.trim()) {
     const id = headerUser.trim();
-    return VALID_DEMO_USER_IDS.has(id) ? id : null;
+    return isValidUserId(id) ? id : null;
   }
 
   const queryUser = req.query.userId;
   if (typeof queryUser === 'string' && queryUser.trim()) {
     const id = queryUser.trim();
-    return VALID_DEMO_USER_IDS.has(id) ? id : null;
+    return isValidUserId(id) ? id : null;
   }
 
   if (req.body && typeof req.body === 'object' && req.body.userId) {
     const id = String(req.body.userId).trim();
-    return VALID_DEMO_USER_IDS.has(id) ? id : null;
+    return isValidUserId(id) ? id : null;
   }
 
   // Fallback to primary demo admin user in local/demo environment if not specified
@@ -53,7 +61,7 @@ export async function requireOrgRole(
   const userId = getRequestUserId(req);
 
   if (!userId) {
-    const error = 'Unauthorized: Unknown or invalid demo profile ID.';
+    const error = 'Unauthorized: Missing or invalid user ID.';
     res.status(401).json({ error });
     return { authorized: false, error, statusCode: 401 };
   }
