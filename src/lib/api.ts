@@ -57,25 +57,26 @@ class ApiClient {
 
   // --- Brand ---
   public async getBrand(brandId = 'brand-apex-01'): Promise<Brand> {
-    return this.request<Brand>(`/api/brands/${brandId}`);
+    return this.request<Brand>(`/api/brands/${encodeURIComponent(brandId)}?orgId=${encodeURIComponent(brandId)}`);
   }
 
   public async updateBrand(brandId: string, updates: Partial<Brand>): Promise<Brand> {
-    return this.request<Brand>(`/api/brands/${brandId}`, {
+    return this.request<Brand>(`/api/brands/${encodeURIComponent(brandId)}?orgId=${encodeURIComponent(brandId)}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     });
   }
 
   // --- Guidelines ---
-  public async getGuidelines(): Promise<Guideline[]> {
-    return this.request<Guideline[]>('/api/guidelines');
+  public async getGuidelines(orgId?: string): Promise<Guideline[]> {
+    const query = orgId ? `?orgId=${encodeURIComponent(orgId)}` : '';
+    return this.request<Guideline[]>(`/api/guidelines${query}`);
   }
 
   public async uploadGuideline(filename: string, raw_text: string, brand_id?: string): Promise<Guideline> {
     return this.request<Guideline>('/api/guidelines', {
       method: 'POST',
-      body: JSON.stringify({ filename, raw_text, brand_id }),
+      body: JSON.stringify({ filename, raw_text, brand_id, org_id: brand_id }),
     });
   }
 
@@ -123,9 +124,12 @@ class ApiClient {
   }
 
   // --- Rules ---
-  public async getRules(guidelineId?: string): Promise<Rule[]> {
-    const query = guidelineId ? `?guideline_id=${encodeURIComponent(guidelineId)}` : '';
-    return this.request<Rule[]>(`/api/rules${query}`);
+  public async getRules(guidelineId?: string, orgId?: string): Promise<Rule[]> {
+    const params = new URLSearchParams();
+    if (guidelineId) params.set('guideline_id', guidelineId);
+    if (orgId) params.set('orgId', orgId);
+    const qs = params.toString();
+    return this.request<Rule[]>(`/api/rules${qs ? `?${qs}` : ''}`);
   }
 
   public async addRule(rule: Omit<Rule, 'id'>): Promise<Rule> {
@@ -149,14 +153,15 @@ class ApiClient {
   }
 
   // --- Facts ---
-  public async getFacts(): Promise<Fact[]> {
-    return this.request<Fact[]>('/api/facts');
+  public async getFacts(orgId?: string): Promise<Fact[]> {
+    const query = orgId ? `?orgId=${encodeURIComponent(orgId)}` : '';
+    return this.request<Fact[]>(`/api/facts${query}`);
   }
 
   public async addFact(fact: Omit<Fact, 'id' | 'brand_id'>, brand_id?: string): Promise<Fact> {
     return this.request<Fact>('/api/facts', {
       method: 'POST',
-      body: JSON.stringify({ ...fact, brand_id }),
+      body: JSON.stringify({ ...fact, brand_id, org_id: brand_id }),
     });
   }
 
@@ -174,8 +179,9 @@ class ApiClient {
   }
 
   // --- Submissions ---
-  public async getSubmissions(): Promise<Submission[]> {
-    return this.request<Submission[]>('/api/submissions');
+  public async getSubmissions(orgId?: string): Promise<Submission[]> {
+    const query = orgId ? `?orgId=${encodeURIComponent(orgId)}` : '';
+    return this.request<Submission[]>(`/api/submissions${query}`);
   }
 
   public async getSubmission(id: string): Promise<{ submission: Submission; issues: Issue[]; reviews: Review[] }> {
@@ -245,8 +251,9 @@ class ApiClient {
   }
 
   // --- Audit Logs ---
-  public async getAuditLogs(): Promise<AuditLog[]> {
-    return this.request<AuditLog[]>('/api/audit-logs');
+  public async getAuditLogs(orgId?: string): Promise<AuditLog[]> {
+    const query = orgId ? `?orgId=${encodeURIComponent(orgId)}` : '';
+    return this.request<AuditLog[]>(`/api/audit-logs${query}`);
   }
 
   // --- Reset / Demo Seed ---

@@ -23,7 +23,7 @@ import {
 import { User } from '@/types';
 import { Organization, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
-import { ModeToggle, AppMode } from '@/components/navigation/ModeToggle';
+import { AppMode } from '@/components/navigation/ModeToggle';
 import {
   EASE_OUT_EXPO,
   ScrollReveal,
@@ -228,12 +228,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 Trust &amp; Governance
               </a>
             </nav>
-          )}
-
-          {onToggleAppMode && (
-            <div className="hidden sm:flex items-center">
-              <ModeToggle mode={appMode} onToggle={onToggleAppMode} />
-            </div>
           )}
 
           <div className="flex items-center gap-3">

@@ -40,7 +40,9 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
+    "@types/pdf-parse": "^1.1.5",
     "framer-motion": "^11.18.2",
-    "mongodb": "^7.8.0"
+    "mongodb": "^7.8.0",
+    "pdf-parse": "^1.1.1"
   }
 }

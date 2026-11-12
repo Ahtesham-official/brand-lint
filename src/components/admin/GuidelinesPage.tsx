@@ -12,15 +12,21 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react';
-import { Guideline, Rule, GuidelineStatus } from '@/types';
+import { Fact, Guideline, Rule, GuidelineStatus } from '@/types';
 import { RAW_GUIDELINE_SAMPLE } from '@/data/seedData';
 import { GuidelineDetailModal } from './GuidelineDetailModal';
+
+interface ExtractionBanner {
+  status: 'loading' | 'success' | 'partial' | 'failed' | 'empty';
+  message: string;
+}
 
 interface GuidelinesPageProps {
   guidelines: Guideline[];
   rules: Rule[];
+  facts?: Fact[];
   onAddGuideline: (filename: string, raw_text: string) => Guideline | Promise<Guideline>;
-  onExtractRules: (id: string) => Promise<void>;
+  onExtractRules: (id: string) => Promise<any>;
   onConfirmGuideline: (id: string) => void;
   onSelectVersion?: (guidelineId: string, version: 'original' | 'enhanced') => Promise<void>;
   onDeleteGuideline?: (id: string) => Promise<void>;
@@ -37,6 +43,7 @@ const STATUS_CLASS: Record<GuidelineStatus, { cls: string; label: string }> = {
 const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
   guidelines,
   rules,
+  facts = [],
   onAddGuideline,
   onExtractRules,
   onConfirmGuideline,
@@ -46,9 +53,11 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [selectedGuideline, setSelected] = useState<Guideline | null>(null);
-  const [filename, setFilename] = useState('Apex_Brand_Guidelines_v2.4.pdf');
-  const [rawText, setRawText] = useState(RAW_GUIDELINE_SAMPLE);
+  const [filename, setFilename] = useState('');
+  const [rawText, setRawText] = useState('');
   const [extractingId, setExtractingId] = useState<string | null>(null);
+  const [extractionStatusMap, setExtractionStatusMap] = useState<Record<string, ExtractionBanner>>({});
+  const [lastBannerId, setLastBannerId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,8 +73,34 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
   const handleExtract = async (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setExtractingId(id);
+    setLastBannerId(id);
+    setExtractionStatusMap((prev) => ({
+      ...prev,
+      [id]: { status: 'loading', message: 'Analysing brand guidelines...' },
+    }));
     try {
-      await onExtractRules(id);
+      const result = await onExtractRules(id);
+      if (result?.extraction_status === 'partial') {
+        setExtractionStatusMap((prev) => ({
+          ...prev,
+          [id]: { status: 'partial', message: 'Extraction completed with warnings.' },
+        }));
+      } else if (result?.extractedCount === 0 && result?.factsCount === 0) {
+        setExtractionStatusMap((prev) => ({
+          ...prev,
+          [id]: { status: 'empty', message: 'No rules or facts were identified.' },
+        }));
+      } else {
+        setExtractionStatusMap((prev) => ({
+          ...prev,
+          [id]: { status: 'success', message: 'Extraction completed successfully.' },
+        }));
+      }
+    } catch {
+      setExtractionStatusMap((prev) => ({
+        ...prev,
+        [id]: { status: 'failed', message: 'Extraction failed. Please retry.' },
+      }));
     } finally {
       setExtractingId(null);
     }
@@ -97,6 +132,36 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     setFilename(file.name);
+
+    const isPdf =
+      file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      setRawText('Extracting text from PDF…');
+      const r = new FileReader();
+      r.onload = async (ev) => {
+        const base64Data = ev.target?.result;
+        if (typeof base64Data !== 'string') return;
+        try {
+          const res = await fetch('/api/guidelines/parse-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ base64Data, filename: file.name }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to parse PDF.');
+          }
+          setRawText(data.text || '');
+        } catch (err: any) {
+          setRawText('');
+          alert(err?.message || 'Failed to extract text from PDF.');
+        }
+      };
+      r.readAsDataURL(file);
+      return;
+    }
+
     const r = new FileReader();
     r.onload = (ev) => {
       if (ev.target?.result) setRawText(ev.target.result as string);
@@ -129,6 +194,32 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
           Upload Guideline
         </button>
       </div>
+
+      {/* ── Extraction Status Banner ── */}
+      {lastBannerId && extractionStatusMap[lastBannerId] && (
+        <div
+          className={`rounded-lg border px-4 py-2.5 text-xs font-medium flex items-center justify-between ${
+            extractionStatusMap[lastBannerId].status === 'failed'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : extractionStatusMap[lastBannerId].status === 'partial'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : extractionStatusMap[lastBannerId].status === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-sky-200 bg-sky-50 text-sky-700'
+          }`}
+        >
+          <span>{extractionStatusMap[lastBannerId].message}</span>
+          {extractionStatusMap[lastBannerId].status === 'failed' && (
+            <button
+              type="button"
+              onClick={() => handleExtract(lastBannerId)}
+              className="underline font-semibold ml-4"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Guidelines List ── */}
       {guidelines.length === 0 ? (
@@ -334,16 +425,23 @@ const GuidelinesPage: React.FC<GuidelinesPageProps> = ({
       )}
 
       {/* Detail Modal */}
-      {selectedGuideline && (
-        <GuidelineDetailModal
-          isOpen={true}
-          guideline={selectedGuideline}
-          rules={rules.filter((r) => r.guideline_id === selectedGuideline.id)}
-          onClose={() => setSelected(null)}
-          onConfirmGuideline={onConfirmGuideline}
-          onSelectVersion={onSelectVersion || (async () => {})}
-        />
-      )}
+      {selectedGuideline && (() => {
+        const liveGuideline = guidelines.find((g) => g.id === selectedGuideline.id) || selectedGuideline;
+        return (
+          <GuidelineDetailModal
+            isOpen={true}
+            guideline={liveGuideline}
+            rules={rules.filter((r) => r.guideline_id === liveGuideline.id)}
+            facts={facts}
+            onClose={() => setSelected(null)}
+            onConfirmGuideline={onConfirmGuideline}
+            onSelectVersion={onSelectVersion || (async () => {})}
+            extracting={extractingId === liveGuideline.id}
+            extractionBanner={extractionStatusMap[liveGuideline.id] || null}
+            onRetryExtract={(id) => handleExtract(id)}
+          />
+        );
+      })()}
     </div>
   );
 };

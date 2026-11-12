@@ -40,17 +40,21 @@ export interface Brand {
 export type GuidelineStatus = 'pending' | 'extracted' | 'confirmed' | 'disabled';
 
 export interface GuidelineAnalysis {
+  brand_name?: string;
+  brand_identity?: string;
   summary: string;
   key_takeaways: string[];
   tone_profile: string;
   strictness_level: 'Permissive' | 'Balanced' | 'Strict' | 'Zero-Tolerance';
   target_audience?: string;
   recommended_actions: string[];
+  document_requirements?: string[];
 }
 
 export interface Guideline {
   id: string;
   brand_id: string;
+  org_id?: string;
   filename: string;
   file_url?: string;
   raw_text: string;
@@ -62,6 +66,8 @@ export interface Guideline {
   ai_analysis?: GuidelineAnalysis;
   enhanced_version?: string;
   selected_version?: 'original' | 'enhanced';
+  extraction_status?: 'idle' | 'loading' | 'success' | 'partial' | 'failed';
+  extraction_error?: string;
 }
 
 export type RuleCategory = 
@@ -80,10 +86,12 @@ export type RuleStatus = 'extracted' | 'confirmed' | 'draft';
 export interface Rule {
   id: string;
   guideline_id: string;
+  org_id?: string;
   category: RuleCategory;
   title: string;
   description: string;
   severity: Severity;
+  enforcement_type?: 'automated' | 'manual_review';
   confidence: number; // 0.0 - 1.0
   source_citation: string; // verbatim quote from guideline
   status: RuleStatus;
@@ -96,6 +104,10 @@ export type FactStatus = 'active' | 'expired' | 'deprecated';
 export interface Fact {
   id: string;
   brand_id: string;
+  org_id?: string;
+  source_guideline_id?: string;
+  fact_title?: string;
+  fact_value?: string;
   claim: string;
   source_document: string;
   source_url?: string;

@@ -3,7 +3,8 @@ import { serverDb } from '@/lib/server/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const rules = await serverDb.getRules();
+    const orgId = typeof req.query.orgId === 'string' ? req.query.orgId : undefined;
+    const rules = await serverDb.getRules(undefined, orgId);
     return res.status(200).json(rules);
   }
 
