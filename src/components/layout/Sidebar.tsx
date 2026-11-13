@@ -23,7 +23,7 @@ import {
   Menu,
   X,
 } from 'lucide-react';
-import { ModeToggle, AppMode } from '@/components/navigation/ModeToggle';
+import { AppMode } from '@/components/navigation/ModeToggle';
 
 export type Page =
   | 'dashboard'

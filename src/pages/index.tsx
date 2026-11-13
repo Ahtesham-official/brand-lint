@@ -158,21 +158,34 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  // Sync state from server database
-  const refreshFromServer = useCallback(async () => {
+  // Sync state from server database (scoped to activeOrgId)
+  const refreshFromServer = useCallback(async (orgIdOverride?: string | null) => {
     checkGroqStatus();
+    const targetOrg = orgIdOverride !== undefined ? orgIdOverride : activeOrgId;
+    const isCustomOrg = Boolean(targetOrg && targetOrg !== 'org-apex-global');
+    const brandIdToFetch = isCustomOrg ? targetOrg! : 'brand-apex-01';
+
     try {
       const [brandData, guidelinesData, rulesData, factsData, submissionsData, logsData] =
         await Promise.all([
-          api.getBrand().catch(() => store.getBrand()),
-          api.getGuidelines().catch(() => store.getGuidelines()),
-          api.getRules().catch(() => store.getRules()),
-          api.getFacts().catch(() => store.getFacts()),
-          api.getSubmissions().catch(() => store.getSubmissions()),
-          api.getAuditLogs().catch(() => store.getAuditLogs()),
+          api.getBrand(brandIdToFetch).catch(() => store.getBrand()),
+          api.getGuidelines(targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getGuidelines())),
+          api.getRules(undefined, targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getRules())),
+          api.getFacts(targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getFacts())),
+          api.getSubmissions(targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getSubmissions())),
+          api.getAuditLogs(targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getAuditLogs())),
         ]);
 
-      setBrand(brandData);
+      const extractedBrandName =
+        brandData.name && brandData.name !== 'New Organisation'
+          ? brandData.name
+          : guidelinesData.find((g) => g.ai_analysis?.brand_name && g.ai_analysis.brand_name !== 'Not specified in document')?.ai_analysis?.brand_name;
+
+      setBrand((prev) => ({
+        ...brandData,
+        name: extractedBrandName || (prev.name && prev.name !== 'Apex Audio' && prev.name !== 'New Organisation' ? prev.name : brandData.name),
+        tagline: brandData.tagline || (isCustomOrg ? '' : prev.tagline),
+      }));
       setGuidelines(guidelinesData);
       setRules(rulesData);
       setFacts(factsData);
@@ -183,7 +196,13 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeOrgId, checkGroqStatus]);
+
+  useEffect(() => {
+    if (activeOrgId) {
+      refreshFromServer(activeOrgId);
+    }
+  }, [activeOrgId, refreshFromServer]);
 
   useEffect(() => {
     setIsClient(true);
@@ -320,8 +339,9 @@ export default function Home() {
   };
 
   const handleAddGuideline = async (filename: string, raw_text: string) => {
+    const targetOrg = activeOrgId || brand.id;
     try {
-      const newGl = await api.uploadGuideline(filename, raw_text, brand.id);
+      const newGl = await api.uploadGuideline(filename, raw_text, targetOrg, targetOrg);
       await refreshFromServer();
       return newGl;
     } catch {
@@ -333,16 +353,15 @@ export default function Home() {
 
   const handleExtractRules = async (guidelineId: string) => {
     try {
-      await api.extractRules(guidelineId);
-      await refreshFromServer();
-    } catch {
-      const gl = guidelines.find((g) => g.id === guidelineId);
-      if (gl) {
-        const { extractRulesFromGuidelineText } = await import('@/lib/ruleExtractor');
-        const extracted = await extractRulesFromGuidelineText(gl.raw_text, gl.id);
-        store.setRulesForGuideline(gl.id, extracted);
-        await refreshFromServer();
+      const result = await api.extractRules(guidelineId);
+      if (result.brand) {
+        setBrand(result.brand);
       }
+      await refreshFromServer();
+      return result;
+    } catch (err) {
+      await refreshFromServer();
+      throw err;
     }
   };
 
@@ -619,6 +638,7 @@ export default function Home() {
           <GuidelinesPage
             guidelines={guidelines}
             rules={rules}
+            facts={facts}
             onAddGuideline={handleAddGuideline}
             onExtractRules={handleExtractRules}
             onConfirmGuideline={handleConfirmGuideline}

@@ -23,6 +23,7 @@ import path from 'path';
 
 export interface DatabaseSchema {
   brand: Brand;
+  brands?: Record<string, Brand>;
   users: User[];
   guidelines: Guideline[];
   rules: Rule[];
@@ -224,12 +225,57 @@ class ServerDatabase {
     return demoData;
   }
 
+  private isDefaultDemoOrg(orgId?: string): boolean {
+    return !orgId || orgId === 'org-apex-global' || orgId === 'brand-apex-01';
+  }
+
+  private getCleanOrgBrand(orgId: string): Brand {
+    return {
+      id: orgId,
+      name: 'New Organisation',
+      tagline: '',
+      logo_url: '',
+      palette: {
+        primary: '#0F172A',
+        primary_name: 'Primary',
+        secondary: '#0284C7',
+        secondary_name: 'Accent',
+        accent: '#10B981',
+        accent_name: 'Success',
+        neutral_dark: '#0F172A',
+        neutral_light: '#F9FAFB',
+        forbidden_colors: [],
+        wcag_min_contrast: 4.5,
+      },
+    };
+  }
+
   // --- Brand ---
-  public async getBrand(): Promise<Brand> {
+  public async getBrand(orgId?: string): Promise<Brand> {
+    if (!this.isDefaultDemoOrg(orgId)) {
+      if (isMongoConfigured()) {
+        try {
+          const db = await getMongoDb();
+          const brand = await db.collection<Brand>('brand').findOne({
+            $or: [{ id: orgId }, { org_id: orgId }],
+          } as any);
+          if (brand) return stripId<Brand>(brand);
+        } catch (e) {
+          console.warn('getBrand(org) mongo error:', (e as Error).message);
+        }
+      }
+      const data = this.readDbLocal();
+      if (data.brands && data.brands[orgId!]) {
+        return data.brands[orgId!];
+      }
+      return this.getCleanOrgBrand(orgId!);
+    }
+
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const brand = await db.collection<Brand>('brand').findOne({});
+        const brand = await db.collection<Brand>('brand').findOne({ id: 'brand-apex-01' })
+          || await db.collection<Brand>('brand').findOne({});
         if (brand) return stripId<Brand>(brand);
       } catch (e) {
         console.warn('getBrand mongo error, falling back:', (e as Error).message);
@@ -238,14 +284,46 @@ class ServerDatabase {
     return this.readDbLocal().brand;
   }
 
-  public async updateBrand(updates: Partial<Brand>): Promise<Brand> {
+  public async updateBrand(updates: Partial<Brand>, orgId?: string): Promise<Brand> {
+    if (!this.isDefaultDemoOrg(orgId)) {
+      if (isMongoConfigured()) {
+        try {
+          const db = await getMongoDb();
+          const current = (await this.getBrand(orgId)) || this.getCleanOrgBrand(orgId!);
+          const updated: Brand = { ...current, ...updates, id: orgId! };
+          delete (updated as any)._id;
+          await db.collection('brand').replaceOne(
+            { id: orgId },
+            { ...updated, org_id: orgId, _id: orgId as any },
+            { upsert: true }
+          );
+          return updated;
+        } catch (e) {
+          console.warn('updateBrand(org) mongo error:', (e as Error).message);
+        }
+      }
+      const data = this.readDbLocal();
+      data.brands = data.brands || {};
+      const current = data.brands[orgId!] || this.getCleanOrgBrand(orgId!);
+      const updated: Brand = { ...current, ...updates, id: orgId! };
+      data.brands[orgId!] = updated;
+      this.writeDbLocal(data);
+      return updated;
+    }
+
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const current = (await db.collection<Brand>('brand').findOne({})) || SEEDED_BRAND;
+        const current = (await db.collection<Brand>('brand').findOne({ id: 'brand-apex-01' }))
+          || (await db.collection<Brand>('brand').findOne({}))
+          || SEEDED_BRAND;
         const updated: Brand = { ...current, ...updates };
         delete (updated as any)._id;
-        await db.collection('brand').replaceOne({}, { ...updated, _id: updated.id || 'b1' }, { upsert: true });
+        await db.collection('brand').replaceOne(
+          { id: updated.id || 'brand-apex-01' },
+          { ...updated, _id: (updated.id || 'b1') as any },
+          { upsert: true }
+        );
         return updated;
       } catch (e) {
         console.warn('updateBrand mongo error, falling back:', (e as Error).message);
@@ -300,17 +378,24 @@ class ServerDatabase {
   }
 
   // --- Guidelines ---
-  public async getGuidelines(): Promise<Guideline[]> {
+  public async getGuidelines(orgId?: string): Promise<Guideline[]> {
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const list = await db.collection<Guideline>('guidelines').find({}).sort({ created_at: -1 }).toArray();
+        const query: any = !this.isDefaultDemoOrg(orgId)
+          ? { $or: [{ org_id: orgId }, { brand_id: orgId }] }
+          : {};
+        const list = await db.collection<Guideline>('guidelines').find(query).sort({ created_at: -1 }).toArray();
         return stripId<Guideline[]>(list).map((g) => ({ ...g, enabled: g.enabled !== false }));
       } catch (e) {
         console.warn('getGuidelines mongo error, falling back:', (e as Error).message);
       }
     }
-    return this.readDbLocal().guidelines;
+    const localList = this.readDbLocal().guidelines;
+    if (!this.isDefaultDemoOrg(orgId)) {
+      return localList.filter((g) => g.brand_id === orgId || (g as any).org_id === orgId);
+    }
+    return localList;
   }
 
   public async getGuidelineById(id: string): Promise<Guideline | undefined> {
@@ -329,11 +414,13 @@ class ServerDatabase {
     return this.readDbLocal().guidelines.find((g) => g.id === id);
   }
 
-  public async createGuideline(filename: string, raw_text: string, brand_id?: string): Promise<Guideline> {
-    const brand = await this.getBrand();
-    const newGl: Guideline = {
+  public async createGuideline(filename: string, raw_text: string, brand_id?: string, org_id?: string): Promise<Guideline> {
+    const targetOrg = org_id || brand_id;
+    const brand = await this.getBrand(targetOrg);
+    const newGl: Guideline & { org_id?: string } = {
       id: `gl-${Date.now()}`,
       brand_id: brand_id || brand.id,
+      org_id: targetOrg || 'org-apex-global',
       filename,
       raw_text,
       status: 'pending',
@@ -364,7 +451,8 @@ class ServerDatabase {
       entity: 'guideline',
       entity_id: newGl.id,
       meta: { filename, size: raw_text.length },
-    });
+      org_id: targetOrg || 'org-apex-global',
+    } as any);
 
     return newGl;
   }
@@ -402,6 +490,7 @@ class ServerDatabase {
         const db = await getMongoDb();
         await db.collection('guidelines').deleteOne({ id });
         await db.collection('rules').deleteMany({ guideline_id: id });
+        await db.collection('facts').deleteMany({ source_guideline_id: id });
       } catch (e) {
         console.warn('deleteGuideline mongo error:', (e as Error).message);
       }
@@ -410,6 +499,7 @@ class ServerDatabase {
     const data = this.readDbLocal();
     data.guidelines = data.guidelines.filter((g) => g.id !== id);
     data.rules = data.rules.filter((r) => r.guideline_id !== id);
+    data.facts = data.facts.filter((f) => f.source_guideline_id !== id);
     this.writeDbLocal(data);
 
     const actor = actorId ? await this.getUserById(actorId) : undefined;
@@ -529,7 +619,27 @@ class ServerDatabase {
   }
 
   // --- Rules ---
-  public async getRules(guidelineId?: string): Promise<Rule[]> {
+  public async getRules(guidelineId?: string, orgId?: string): Promise<Rule[]> {
+    if (!guidelineId && !this.isDefaultDemoOrg(orgId)) {
+      const orgGuidelines = await this.getGuidelines(orgId);
+      const glIds = orgGuidelines.map((g) => g.id);
+      if (glIds.length === 0) return [];
+      if (isMongoConfigured()) {
+        try {
+          const db = await getMongoDb();
+          const rules = await db
+            .collection<Rule>('rules')
+            .find({ $or: [{ guideline_id: { $in: glIds } }, { org_id: orgId }] } as any)
+            .toArray();
+          return stripId<Rule[]>(rules);
+        } catch (e) {
+          console.warn('getRules(org) mongo error, falling back:', (e as Error).message);
+        }
+      }
+      const glSet = new Set(glIds);
+      return this.readDbLocal().rules.filter((r) => glSet.has(r.guideline_id) || (r as any).org_id === orgId);
+    }
+
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
@@ -547,15 +657,15 @@ class ServerDatabase {
     return all;
   }
 
-  public async getActiveRules(): Promise<Rule[]> {
-    const guidelines = await this.getGuidelines();
+  public async getActiveRules(orgId?: string): Promise<Rule[]> {
+    const guidelines = await this.getGuidelines(orgId);
     const enabledGuidelineIds = new Set(
       guidelines
         .filter((g) => g.enabled !== false && g.status !== 'disabled')
         .map((g) => g.id)
     );
 
-    const allRules = await this.getRules();
+    const allRules = await this.getRules(undefined, orgId);
     return allRules.filter(
       (r) => r.status === 'confirmed' && enabledGuidelineIds.has(r.guideline_id)
     );
@@ -686,13 +796,19 @@ class ServerDatabase {
     return true;
   }
 
-  public async replaceRulesForGuideline(guidelineId: string, newRules: Rule[]): Promise<Rule[]> {
+  public async replaceRulesForGuideline(guidelineId: string, newRules: Rule[], orgId?: string): Promise<Rule[]> {
+    const normalizedRules = newRules.map((r) => ({
+      ...r,
+      guideline_id: guidelineId,
+      ...(orgId ? { org_id: r.org_id || orgId } : {}),
+    }));
+
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
         await db.collection('rules').deleteMany({ guideline_id: guidelineId });
-        if (newRules.length > 0) {
-          await db.collection('rules').insertMany(newRules.map((r) => ({ ...r, _id: r.id })) as any);
+        if (normalizedRules.length > 0) {
+          await db.collection('rules').insertMany(normalizedRules.map((r) => ({ ...r, _id: r.id })) as any);
         }
         await db.collection('guidelines').updateOne(
           { id: guidelineId },
@@ -700,7 +816,7 @@ class ServerDatabase {
             $set: {
               status: 'extracted',
               extracted_at: new Date().toISOString(),
-              rules_count: newRules.length,
+              rules_count: normalizedRules.length,
             },
           }
         );
@@ -710,30 +826,89 @@ class ServerDatabase {
     }
 
     const data = this.readDbLocal();
-    data.rules = [...data.rules.filter((r) => r.guideline_id !== guidelineId), ...newRules];
+    data.rules = [...data.rules.filter((r) => r.guideline_id !== guidelineId), ...normalizedRules];
     const gl = data.guidelines.find((g) => g.id === guidelineId);
     if (gl) {
       gl.status = 'extracted';
       gl.extracted_at = new Date().toISOString();
-      gl.rules_count = newRules.length;
+      gl.rules_count = normalizedRules.length;
     }
     this.writeDbLocal(data);
 
-    return newRules;
+    return normalizedRules;
   }
 
-  // --- Fact Vault ---
-  public async getFacts(): Promise<Fact[]> {
+  public async replaceFactsForGuideline(
+    guidelineId: string,
+    filename: string,
+    candidates: { fact_title: string; fact_value: string; claim: string; category: string; notes?: string; expires_at?: string }[],
+    orgId?: string
+  ): Promise<Fact[]> {
+    const defaultExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
+    const targetOrg = orgId || 'org-apex-global';
+    const newFacts: Fact[] = candidates.map((c, idx) => {
+      const claimText =
+        typeof c.claim === 'string' && c.claim.trim().length > 0
+          ? c.claim.trim()
+          : typeof c.fact_value === 'string' && c.fact_value.trim().length > 0
+          ? c.fact_value.trim()
+          : c.fact_title;
+      return {
+        id: `fact-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        brand_id: targetOrg,
+        org_id: targetOrg,
+        source_guideline_id: guidelineId,
+        fact_title: c.fact_title,
+        fact_value: c.fact_value || claimText,
+        claim: claimText,
+        category: c.category || 'Verified Fact',
+        source_document: filename,
+        notes: c.notes,
+        expires_at: c.expires_at || defaultExpiry,
+        status: 'active',
+        created_at: now,
+      };
+    });
+
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const facts = await db.collection<Fact>('facts').find({}).sort({ created_at: -1 }).toArray();
+        await db.collection('facts').deleteMany({ source_guideline_id: guidelineId });
+        if (newFacts.length > 0) {
+          await db.collection('facts').insertMany(newFacts.map((f) => ({ ...f, _id: f.id })) as any);
+        }
+      } catch (e) {
+        console.warn('replaceFactsForGuideline mongo error:', (e as Error).message);
+      }
+    }
+
+    const data = this.readDbLocal();
+    data.facts = [...newFacts, ...data.facts.filter((f) => f.source_guideline_id !== guidelineId)];
+    this.writeDbLocal(data);
+
+    return newFacts;
+  }
+
+  // --- Fact Vault ---
+  public async getFacts(orgId?: string): Promise<Fact[]> {
+    if (isMongoConfigured()) {
+      try {
+        const db = await getMongoDb();
+        const query: any = !this.isDefaultDemoOrg(orgId)
+          ? { $or: [{ org_id: orgId }, { brand_id: orgId }] }
+          : {};
+        const facts = await db.collection<Fact>('facts').find(query).sort({ created_at: -1 }).toArray();
         return stripId<Fact[]>(facts);
       } catch (e) {
         console.warn('getFacts mongo error, falling back:', (e as Error).message);
       }
     }
-    return this.readDbLocal().facts;
+    const all = this.readDbLocal().facts;
+    if (!this.isDefaultDemoOrg(orgId)) {
+      return all.filter((f) => f.brand_id === orgId || (f as any).org_id === orgId);
+    }
+    return all;
   }
 
   public async getFactById(id: string): Promise<Fact | undefined> {
@@ -749,12 +924,14 @@ class ServerDatabase {
     return this.readDbLocal().facts.find((f) => f.id === id);
   }
 
-  public async createFact(factData: Omit<Fact, 'id' | 'brand_id'>, brandId?: string): Promise<Fact> {
-    const brand = await this.getBrand();
-    const newFact: Fact = {
+  public async createFact(factData: Omit<Fact, 'id' | 'brand_id'>, brandId?: string, orgId?: string): Promise<Fact> {
+    const targetOrg = orgId || brandId;
+    const brand = await this.getBrand(targetOrg);
+    const newFact: Fact & { org_id?: string } = {
       ...factData,
       id: `fact-${Date.now()}`,
       brand_id: brandId || brand.id,
+      org_id: targetOrg || 'org-apex-global',
       status: factData.status || 'active',
     };
 
@@ -824,17 +1001,24 @@ class ServerDatabase {
   }
 
   // --- Submissions ---
-  public async getSubmissions(): Promise<Submission[]> {
+  public async getSubmissions(orgId?: string): Promise<Submission[]> {
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const subs = await db.collection<Submission>('submissions').find({}).sort({ created_at: -1 }).toArray();
+        const query: any = !this.isDefaultDemoOrg(orgId)
+          ? { $or: [{ org_id: orgId }, { brand_id: orgId }] }
+          : {};
+        const subs = await db.collection<Submission>('submissions').find(query).sort({ created_at: -1 }).toArray();
         return stripId<Submission[]>(subs);
       } catch (e) {
         console.warn('getSubmissions mongo error, falling back:', (e as Error).message);
       }
     }
-    return this.readDbLocal().submissions;
+    const all = this.readDbLocal().submissions;
+    if (!this.isDefaultDemoOrg(orgId)) {
+      return all.filter((s) => s.brand_id === orgId || (s as any).org_id === orgId);
+    }
+    return all;
   }
 
   public async getSubmissionById(id: string): Promise<Submission | undefined> {
@@ -862,14 +1046,15 @@ class ServerDatabase {
     creator_id?: string;
     brand_id?: string;
   }): Promise<Submission> {
-    const brand = await this.getBrand();
+    const brand = await this.getBrand(data.brand_id);
     const users = await this.getUsers();
     const user = data.creator_id ? await this.getUserById(data.creator_id) : users.find((u) => u.role === 'creator') || users[1];
     const subId = `sub-${Date.now()}`;
 
-    const newSub: Submission = {
+    const newSub: Submission & { org_id?: string } = {
       id: subId,
       brand_id: data.brand_id || brand.id,
+      org_id: data.brand_id || 'org-apex-global',
       creator_id: user?.id || 'usr-creator-01',
       creator_name: user?.name || 'Alex Rivera',
       title: data.title,
@@ -1129,17 +1314,22 @@ class ServerDatabase {
   }
 
   // --- Audit Logs ---
-  public async getAuditLogs(): Promise<AuditLog[]> {
+  public async getAuditLogs(orgId?: string): Promise<AuditLog[]> {
     if (isMongoConfigured()) {
       try {
         const db = await getMongoDb();
-        const logs = await db.collection<AuditLog>('audit_logs').find({}).sort({ created_at: -1 }).limit(200).toArray();
+        const query: any = !this.isDefaultDemoOrg(orgId) ? { org_id: orgId } : {};
+        const logs = await db.collection<AuditLog>('audit_logs').find(query).sort({ created_at: -1 }).limit(200).toArray();
         return stripId<AuditLog[]>(logs);
       } catch (e) {
         console.warn('getAuditLogs mongo error, falling back:', (e as Error).message);
       }
     }
-    return this.readDbLocal().audit_logs;
+    const all = this.readDbLocal().audit_logs;
+    if (!this.isDefaultDemoOrg(orgId)) {
+      return all.filter((l) => (l as any).org_id === orgId);
+    }
+    return all;
   }
 
   public async createAuditLog(entry: Omit<AuditLog, 'id' | 'created_at'>): Promise<AuditLog> {

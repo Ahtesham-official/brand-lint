@@ -13,7 +13,8 @@ export const config = {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
-    const submissions = await serverDb.getSubmissions();
+    const orgId = typeof req.query.orgId === 'string' ? req.query.orgId : undefined;
+    const submissions = await serverDb.getSubmissions(orgId);
     return res.status(200).json(submissions);
   }
 
@@ -40,10 +41,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       brand_id,
     });
 
-    // 2. Fetch the active Admin rules and Fact Vault records
-    const activeRules = await serverDb.getActiveRules();
-    const brand = await serverDb.getBrand();
-    const facts = await serverDb.getFacts();
+    // 2. Fetch the active Admin rules and Fact Vault records for this org
+    const activeRules = await serverDb.getActiveRules(brand_id);
+    const brand = await serverDb.getBrand(brand_id);
+    const facts = await serverDb.getFacts(brand_id);
 
     // 3. Run Agentic AI Brain (StateGraph with modular extraction & audit tools)
     let extractedVideoData: Awaited<ReturnType<typeof extractFromVideoAsync>> | null = null;

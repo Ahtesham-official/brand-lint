@@ -63,7 +63,7 @@ function runVisualDeterministicChecks(input: CheckEngineInput): Issue[] {
           provenance: 'ocr',
         },
         explanation: `Poster graphic features dominant color ${detectedDominantColor} (Vibrant Crimson/Hot Pink) with ΔE distance 48.6 from approved brand palette. This color is explicitly forbidden in brand guidelines.`,
-        suggestion: `Re-export poster artwork using approved brand colors: ${brand.palette.primary} (Acoustic Navy) or ${brand.palette.secondary} (Electric Cyan).`,
+        suggestion: `Re-export poster artwork using approved brand colors: ${brand.palette.primary} or ${brand.palette.secondary}.`,
         status: 'open',
       });
     }
@@ -210,12 +210,12 @@ function runDeterministicTextChecks(input: CheckEngineInput): Issue[] {
           matched_text: matchedText,
           provenance: 'caption',
         },
-        explanation: `The copy uses aggressive hype phrasing ("${matchedText}") and excessive exclamation marks (${exclamationCount} detected). Apex Audio tone guidelines require calm, understated, technical confidence.`,
-        suggestion: `Revise copy to adopt a professional, acoustic-focused cadence without urgency pressure.`,
+        explanation: `The copy uses aggressive hype phrasing ("${matchedText}") and excessive exclamation marks (${exclamationCount} detected). Brand tone guidelines require calm, understated confidence.`,
+        suggestion: `Revise copy to adopt a professional, measured cadence without urgency pressure.`,
         suggested_text: caption
-          .replace(/Unleash the sound!/i, 'Experience acoustic precision.')
+          .replace(/Unleash the sound!/i, 'Experience refined engineering.')
           .replace(/Grab yours before midnight!/i, 'Available at authorized retailers.')
-          .replace(/#unbeatable/g, '#ApexAudio'),
+          .replace(/#unbeatable/g, '#BrandApproved'),
         status: 'open',
       });
     }

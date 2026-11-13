@@ -23,7 +23,7 @@ import {
 import { User } from '@/types';
 import { Organization, OrgRole } from '@/types/org';
 import { SEEDED_USERS } from '@/data/seedData';
-import { ModeToggle, AppMode } from '@/components/navigation/ModeToggle';
+import { AppMode } from '@/components/navigation/ModeToggle';
 import {
   EASE_OUT_EXPO,
   ScrollReveal,

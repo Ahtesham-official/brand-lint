@@ -1,169 +1,174 @@
 import { Rule, RuleCategory, Severity } from '../types';
+import { callGroqWithSmartRetry, prepareGuidelineText } from './guidelineExtractor';
 
 export interface ExtractedRuleItem {
   category: RuleCategory;
   title: string;
   description: string;
   severity: Severity;
+  enforcement_type?: 'automated' | 'manual_review';
   confidence: number;
   source_citation: string;
   banned_words?: string[];
   required_phrase?: string;
 }
 
-export function validateRuleSchema(item: any): item is ExtractedRuleItem {
-  const validCategories: RuleCategory[] = [
-    'banned_term',
-    'required_disclaimer',
-    'tone',
-    'messaging',
-    'claim_policy',
-    'visual_colour',
-    'visual_contrast',
-  ];
-  const validSeverities: Severity[] = ['low', 'med', 'high'];
+export function normalizeRuleItem(item: any): ExtractedRuleItem | null {
+  if (!item || typeof item !== 'object') return null;
 
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    validCategories.includes(item.category) &&
-    typeof item.title === 'string' && item.title.trim().length > 0 &&
-    typeof item.description === 'string' && item.description.trim().length > 0 &&
-    validSeverities.includes(item.severity) &&
-    typeof item.confidence === 'number' && item.confidence >= 0 && item.confidence <= 1 &&
+  const title =
+    typeof item.title === 'string' && item.title.trim().length > 0
+      ? item.title.trim()
+      : typeof item.rule === 'string' && item.rule.trim().length > 0
+      ? item.rule.trim()
+      : typeof item.description === 'string' && item.description.trim().length > 0
+      ? item.description.trim().slice(0, 80)
+      : '';
+
+  const description =
+    typeof item.description === 'string' && item.description.trim().length > 0
+      ? item.description.trim()
+      : title;
+
+  if (!title || !description) return null;
+
+  // Category normalization
+  let category: RuleCategory = 'messaging';
+  const rawCat = String(item.category || '').toLowerCase().replace(/[-\s]/g, '_');
+  if (
+    rawCat.includes('banned') ||
+    rawCat.includes('prohibited') ||
+    rawCat.includes('forbidden') ||
+    rawCat.includes('superlative') ||
+    rawCat.includes('word')
+  ) {
+    category = 'banned_term';
+  } else if (
+    rawCat.includes('disclaimer') ||
+    rawCat.includes('required_phrase') ||
+    rawCat.includes('mandatory')
+  ) {
+    category = 'required_disclaimer';
+  } else if (rawCat.includes('tone') || rawCat.includes('voice')) {
+    category = 'tone';
+  } else if (
+    rawCat.includes('color') ||
+    rawCat.includes('colour') ||
+    rawCat.includes('palette')
+  ) {
+    category = 'visual_colour';
+  } else if (rawCat.includes('contrast') || rawCat.includes('wcag')) {
+    category = 'visual_contrast';
+  } else if (
+    rawCat.includes('claim') ||
+    rawCat.includes('proof') ||
+    rawCat.includes('warranty') ||
+    rawCat.includes('spec')
+  ) {
+    category = 'claim_policy';
+  } else if (rawCat.includes('message') || rawCat.includes('copy') || rawCat.includes('headline')) {
+    category = 'messaging';
+  }
+
+  // Severity normalization
+  let severity: Severity = 'med';
+  const rawSev = String(item.severity || '').toLowerCase();
+  if (
+    rawSev.includes('high') ||
+    rawSev.includes('crit') ||
+    rawSev.includes('zero') ||
+    rawSev.includes('strict')
+  ) {
+    severity = 'high';
+  } else if (rawSev.includes('low') || rawSev.includes('minor') || rawSev.includes('warn')) {
+    severity = 'low';
+  } else {
+    severity = 'med';
+  }
+
+  // Enforcement type
+  let enforcement_type: 'automated' | 'manual_review' =
+    category === 'banned_term' ||
+    category === 'required_disclaimer' ||
+    category === 'visual_colour' ||
+    category === 'visual_contrast'
+      ? 'automated'
+      : 'manual_review';
+  if (item.enforcement_type === 'automated' || item.enforcement_type === 'manual_review') {
+    enforcement_type = item.enforcement_type;
+  }
+
+  // Confidence
+  let confidence = typeof item.confidence === 'number' ? item.confidence : parseFloat(item.confidence);
+  if (isNaN(confidence) || confidence < 0 || confidence > 1) {
+    confidence = 0.92;
+  }
+
+  // Source citation
+  const source_citation =
     typeof item.source_citation === 'string' && item.source_citation.trim().length > 0
-  );
+      ? item.source_citation.trim()
+      : typeof item.citation === 'string' && item.citation.trim().length > 0
+      ? item.citation.trim()
+      : typeof item.quote === 'string' && item.quote.trim().length > 0
+      ? item.quote.trim()
+      : description;
+
+  const banned_words = Array.isArray(item.banned_words)
+    ? item.banned_words.filter((w: any) => typeof w === 'string' && w.trim().length > 0)
+    : undefined;
+
+  const required_phrase =
+    typeof item.required_phrase === 'string' && item.required_phrase.trim().length > 0
+      ? item.required_phrase.trim()
+      : undefined;
+
+  return {
+    category,
+    title,
+    description,
+    severity,
+    enforcement_type,
+    confidence,
+    source_citation,
+    banned_words,
+    required_phrase,
+  };
 }
 
-export function extractRulesHeuristically(text: string, guidelineId: string): Rule[] {
-  const extracted: Rule[] = [];
-
-  // Rule 1: Banned Terms & Superlatives
-  if (/superlative|banned|prohibited|avoid|never/i.test(text)) {
-    const match = text.match(/Strictly avoid.*?(?:superlatives|terms).*?["“]([^"”]+)["”]/i) ||
-                  text.match(/(?:avoid|prohibit)[^.\n]*?["“]([^"”]+)["”]/i);
-    const citation = match ? match[0] : 'Strictly avoid unsubstantiated superlatives such as "India\'s #1", "world\'s best", "unbeatable"...';
-    
-    extracted.push({
-      id: `rule-ext-${Date.now()}-1`,
-      guideline_id: guidelineId,
-      category: 'banned_term',
-      title: 'Prohibition of Unsubstantiated Superlatives & Banned Claims',
-      description: 'Superlatives and unverified comparative statements must not appear in marketing copy without legal certification.',
-      severity: 'high',
-      confidence: 0.97,
-      source_citation: citation,
-      status: 'extracted',
-      banned_words: ["India's #1", '#1', "world's best", 'unbeatable', 'cheapest'],
-    });
-  }
-
-  // Rule 2: Hardware Warranty & Fact Vault Alignment
-  if (/warranty|hardware|specification|guarantee/i.test(text)) {
-    const citation = 'The authorized manufacturer warranty for all standard wireless hardware is strictly 12 months. Do not invent or advertise unauthorized extended warranties (such as "24-month warranty")...';
-    extracted.push({
-      id: `rule-ext-${Date.now()}-2`,
-      guideline_id: guidelineId,
-      category: 'claim_policy',
-      title: 'Fact Vault Warranty Synchronization Mandate',
-      description: 'All published warranty terms must accurately mirror Fact Vault authorizations. Advertised durations cannot exceed certified manufacturer coverage.',
-      severity: 'high',
-      confidence: 0.95,
-      source_citation: citation,
-      status: 'extracted',
-    });
-  }
-
-  // Rule 3: Tone & Voice
-  if (/tone|voice|cadence|understated|clarity/i.test(text)) {
-    const citation = 'Apex Audio represents precision acoustic engineering, calm authority, and refined clarity. Our voice is understated, technical, professional, and confident.';
-    extracted.push({
-      id: `rule-ext-${Date.now()}-3`,
-      guideline_id: guidelineId,
-      category: 'tone',
-      title: 'Understated Technical Brand Voice',
-      description: 'Communications must convey quiet engineering authority and avoid sensational hype, pressure tactics, or exclamation spam.',
-      severity: 'med',
-      confidence: 0.88,
-      source_citation: citation,
-      status: 'extracted',
-    });
-  }
-
-  // Rule 4: Mandatory Disclaimer
-  if (/disclaimer|terms|promotional|mandatory/i.test(text)) {
-    const citation = 'Whenever content features a promotional discount, pricing claim, or limited availability, the content must prominently include the following mandatory legal disclaimer: "Terms & conditions apply. See website for details."';
-    extracted.push({
-      id: `rule-ext-${Date.now()}-4`,
-      guideline_id: guidelineId,
-      category: 'required_disclaimer',
-      title: 'Mandatory Promotional Legal Disclaimer',
-      description: 'Promotional campaigns, discount offers, and limited-time sales require an explicit terms and conditions legal disclaimer.',
-      severity: 'med',
-      confidence: 0.93,
-      source_citation: citation,
-      status: 'extracted',
-      required_phrase: 'Terms & conditions apply. See website for details.',
-    });
-  }
-
-  // Rule 5: Visual Palette
-  if (/palette|color|navy|cyan|pink/i.test(text)) {
-    const citation = 'Apex Audio visual materials must remain faithful to our signature acoustic palette: Primary: Acoustic Navy Blue (#1E3A8A), Secondary: Electric Cyan (#3B82F6), Accent: Studio Emerald (#10B981). Off-palette fluorescent hot pinks...';
-    extracted.push({
-      id: `rule-ext-${Date.now()}-5`,
-      guideline_id: guidelineId,
-      category: 'visual_colour',
-      title: 'Authorized Palette Identity Compliance',
-      description: 'Design elements and promotional graphics must exclusively use verified brand palette hex colors.',
-      severity: 'high',
-      confidence: 0.96,
-      source_citation: citation,
-      status: 'extracted',
-    });
-  }
-
-  // Rule 6: WCAG Contrast
-  if (/contrast|accessibility|wcag|4.5:1/i.test(text)) {
-    const citation = 'All typography overlaid on posters, promotional graphics, or video stills must adhere strictly to the WCAG AA standard, requiring a minimum contrast ratio of 4.5:1 against the backdrop for legible reading.';
-    extracted.push({
-      id: `rule-ext-${Date.now()}-6`,
-      guideline_id: guidelineId,
-      category: 'visual_contrast',
-      title: 'Accessible Contrast Standards (WCAG AA 4.5:1)',
-      description: 'Poster text must have a minimum 4.5:1 contrast ratio against backdrops for readability.',
-      severity: 'med',
-      confidence: 0.92,
-      source_citation: citation,
-      status: 'extracted',
-    });
-  }
-
-  return extracted;
+export function validateRuleSchema(item: any): item is ExtractedRuleItem {
+  return normalizeRuleItem(item) !== null;
 }
 
 /**
- * Extracts atomic compliance rules using Groq Llama 3.3 70B,
- * with automatic fallback to heuristic extraction.
+ * Extracts atomic, document-grounded compliance rules using Groq LLM.
+ * Never returns hardcoded or cross-brand fallback rules.
+ * Throws an explicit error if GROQ_API_KEY is missing or the API request fails.
  */
-export async function extractRulesFromGuidelineText(text: string, guidelineId: string): Promise<Rule[]> {
+export async function extractRulesFromGuidelineText(
+  text: string,
+  guidelineId: string,
+  orgId?: string
+): Promise<Rule[]> {
   const apiKey = process.env.GROQ_API_KEY;
 
-  if (apiKey && apiKey.trim().length > 0) {
-    try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey.trim()}`,
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-oss-120b',
-          messages: [
-            {
-              role: 'system',
-              content: `You are BrandLint's brand guideline compiler.
-Extract atomic, enforceable brand governance rules from the guideline document below.
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error('GROQ_API_KEY is not configured on the server. Rule extraction cannot proceed.');
+  }
+
+  if (!text || text.trim().length === 0) {
+    throw new Error('Guideline text is empty.');
+  }
+
+  const preparedText = prepareGuidelineText(text);
+
+  const response = await callGroqWithSmartRetry(apiKey, {
+    model: 'openai/gpt-oss-120b',
+    messages: [
+      {
+        role: 'system',
+        content: `You are BrandLint's brand guideline compiler.
+Extract atomic, enforceable brand governance rules strictly from the uploaded guideline document below.
 Return STRICT JSON with a root object containing an array "rules":
 {
   "rules": [
@@ -172,48 +177,62 @@ Return STRICT JSON with a root object containing an array "rules":
       "title": string,
       "description": string,
       "severity": "high" | "med" | "low",
+      "enforcement_type": "automated" | "manual_review",
       "confidence": number between 0.0 and 1.0,
-      "source_citation": string (verbatim quote from the text),
+      "source_citation": string (verbatim quote from the uploaded text),
       "banned_words": string[] (optional for banned_term),
       "required_phrase": string (optional for required_disclaimer)
     }
   ]
 }
-Rules must be atomic — one constraint per rule. Do not invent rules not present in the text.`,
-            },
-            {
-              role: 'user',
-              content: text,
-            },
-          ],
-          response_format: { type: 'json_object' },
-          temperature: 0.1,
-        }),
-      });
+CRITICAL:
+- Rules must be atomic — one constraint per rule.
+- Every rule and source_citation MUST come verbatim from the provided document.
+- Do NOT invent rules or copy rules from any other brand.
+- If the document contains no enforceable rules, return {"rules": []}.`,
+      },
+      {
+        role: 'user',
+        content: text,
+      },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.1,
+  });
 
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content;
-        const parsed = JSON.parse(content);
-        const rulesList = Array.isArray(parsed) ? parsed : parsed.rules || Object.values(parsed)[0];
-        
-        if (Array.isArray(rulesList) && rulesList.length > 0) {
-          const validated = rulesList
-            .filter(validateRuleSchema)
-            .map((item, idx) => ({
-              ...item,
-              id: `rule-groq-${Date.now()}-${idx}`,
-              guideline_id: guidelineId,
-              status: 'extracted' as const,
-            }));
-          if (validated.length > 0) return validated;
-        }
-      }
-    } catch (err) {
-      console.warn('Groq extraction encountered an issue, falling back to heuristic engine', err);
-    }
+  if (!response.ok) {
+    const errText = await response.text().catch(() => response.statusText);
+    throw new Error(`Groq rule extraction API failed (${response.status}): ${errText}`);
   }
 
-  // Heuristic extraction fallback (fast, deterministic, < 25s, PRD-compliant)
-  return extractRulesHeuristically(text, guidelineId);
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Groq rule extraction returned an empty response.');
+  }
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('Groq rule extraction returned invalid JSON.');
+  }
+
+  const rulesList = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed.rules)
+    ? parsed.rules
+    : [];
+
+  const normalized = rulesList
+    .map(normalizeRuleItem)
+    .filter((r: any): r is ExtractedRuleItem => Boolean(r));
+
+  return normalized.map((item: ExtractedRuleItem, idx: number) => ({
+    ...item,
+    id: `rule-groq-${Date.now()}-${idx}`,
+    guideline_id: guidelineId,
+    org_id: orgId,
+    status: 'extracted' as const,
+  }));
 }
