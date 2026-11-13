@@ -1,4 +1,5 @@
 import { Rule, RuleCategory, Severity } from '../types';
+import { callGroqWithSmartRetry, prepareGuidelineText } from './guidelineExtractor';
 
 export interface ExtractedRuleItem {
   category: RuleCategory;
@@ -140,38 +141,6 @@ export function validateRuleSchema(item: any): item is ExtractedRuleItem {
 }
 
 /**
- * Executes a Groq completion request with automatic fallback to llama-3.3-70b-versatile
- * if rate limit (429) occurs.
- */
-async function callGroqWithFallback(apiKey: string, body: any): Promise<Response> {
-  const primaryModel = body.model || 'openai/gpt-oss-120b';
-  const fallbackModel = 'llama-3.3-70b-versatile';
-
-  let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey.trim()}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (response.status === 429 && primaryModel !== fallbackModel) {
-    console.warn(`Groq model ${primaryModel} reached 429 rate limit. Seamlessly falling back to ${fallbackModel}...`);
-    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`,
-      },
-      body: JSON.stringify({ ...body, model: fallbackModel }),
-    });
-  }
-
-  return response;
-}
-
-/**
  * Extracts atomic, document-grounded compliance rules using Groq LLM.
  * Never returns hardcoded or cross-brand fallback rules.
  * Throws an explicit error if GROQ_API_KEY is missing or the API request fails.
@@ -191,7 +160,9 @@ export async function extractRulesFromGuidelineText(
     throw new Error('Guideline text is empty.');
   }
 
-  const response = await callGroqWithFallback(apiKey, {
+  const preparedText = prepareGuidelineText(text);
+
+  const response = await callGroqWithSmartRetry(apiKey, {
     model: 'openai/gpt-oss-120b',
     messages: [
       {

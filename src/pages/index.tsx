@@ -176,9 +176,14 @@ export default function Home() {
           api.getAuditLogs(targetOrg || undefined).catch(() => (isCustomOrg ? [] : store.getAuditLogs())),
         ]);
 
+      const extractedBrandName =
+        brandData.name && brandData.name !== 'New Organisation'
+          ? brandData.name
+          : guidelinesData.find((g) => g.ai_analysis?.brand_name && g.ai_analysis.brand_name !== 'Not specified in document')?.ai_analysis?.brand_name;
+
       setBrand((prev) => ({
         ...brandData,
-        name: brandData.name === 'New Organisation' && prev.name && prev.name !== 'Apex Audio' ? prev.name : brandData.name,
+        name: extractedBrandName || (prev.name && prev.name !== 'Apex Audio' && prev.name !== 'New Organisation' ? prev.name : brandData.name),
         tagline: brandData.tagline || (isCustomOrg ? '' : prev.tagline),
       }));
       setGuidelines(guidelinesData);
@@ -349,6 +354,9 @@ export default function Home() {
   const handleExtractRules = async (guidelineId: string) => {
     try {
       const result = await api.extractRules(guidelineId);
+      if (result.brand) {
+        setBrand(result.brand);
+      }
       await refreshFromServer();
       return result;
     } catch (err) {

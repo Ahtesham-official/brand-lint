@@ -1,10 +1,12 @@
 import { GuidelineAnalysis } from '@/types';
+import { callGroqWithSmartRetry, prepareGuidelineText } from './guidelineExtractor';
 
 export interface ExtractedFactCandidate {
   fact_title: string;
   fact_value: string;
   claim: string;
   category: string;
+  notes?: string;
   expires_at?: string;
 }
 
@@ -16,38 +18,6 @@ export interface EnhanceGuidelineResult {
 }
 
 const NOT_SPECIFIED = 'Not specified in document';
-
-/**
- * Executes a Groq completion request with automatic fallback to llama-3.3-70b-versatile
- * if rate limit (429) occurs.
- */
-async function callGroqWithFallback(apiKey: string, body: any): Promise<Response> {
-  const primaryModel = body.model || 'openai/gpt-oss-120b';
-  const fallbackModel = 'llama-3.3-70b-versatile';
-
-  let response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey.trim()}`,
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (response.status === 429 && primaryModel !== fallbackModel) {
-    console.warn(`Groq model ${primaryModel} reached 429 rate limit. Seamlessly falling back to ${fallbackModel}...`);
-    response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.trim()}`,
-      },
-      body: JSON.stringify({ ...body, model: fallbackModel }),
-    });
-  }
-
-  return response;
-}
 
 /**
  * Analyzes raw guidelines using Groq LLM and generates:
@@ -72,7 +42,9 @@ export async function analyzeAndEnhanceGuideline(
     throw new Error('Guideline document text is empty.');
   }
 
-  const response = await callGroqWithFallback(apiKey, {
+  const preparedText = prepareGuidelineText(rawText);
+
+  const response = await callGroqWithSmartRetry(apiKey, {
     model: 'openai/gpt-oss-120b',
     messages: [
       {

@@ -23,6 +23,7 @@ import path from 'path';
 
 export interface DatabaseSchema {
   brand: Brand;
+  brands?: Record<string, Brand>;
   users: User[];
   guidelines: Guideline[];
   rules: Rule[];
@@ -263,6 +264,10 @@ class ServerDatabase {
           console.warn('getBrand(org) mongo error:', (e as Error).message);
         }
       }
+      const data = this.readDbLocal();
+      if (data.brands && data.brands[orgId!]) {
+        return data.brands[orgId!];
+      }
       return this.getCleanOrgBrand(orgId!);
     }
 
@@ -297,7 +302,13 @@ class ServerDatabase {
           console.warn('updateBrand(org) mongo error:', (e as Error).message);
         }
       }
-      return { ...this.getCleanOrgBrand(orgId!), ...updates, id: orgId! };
+      const data = this.readDbLocal();
+      data.brands = data.brands || {};
+      const current = data.brands[orgId!] || this.getCleanOrgBrand(orgId!);
+      const updated: Brand = { ...current, ...updates, id: orgId! };
+      data.brands[orgId!] = updated;
+      this.writeDbLocal(data);
+      return updated;
     }
 
     if (isMongoConfigured()) {
@@ -830,26 +841,35 @@ class ServerDatabase {
   public async replaceFactsForGuideline(
     guidelineId: string,
     filename: string,
-    candidates: { fact_title: string; fact_value: string; claim: string; category: string; expires_at?: string }[],
+    candidates: { fact_title: string; fact_value: string; claim: string; category: string; notes?: string; expires_at?: string }[],
     orgId?: string
   ): Promise<Fact[]> {
     const defaultExpiry = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
     const now = new Date().toISOString();
     const targetOrg = orgId || 'org-apex-global';
-    const newFacts: Fact[] = candidates.map((c, idx) => ({
-      id: `fact-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-      brand_id: targetOrg,
-      org_id: targetOrg,
-      source_guideline_id: guidelineId,
-      fact_title: c.fact_title,
-      fact_value: c.fact_value,
-      claim: c.claim || c.fact_value || c.fact_title,
-      category: c.category || 'Verified Fact',
-      source_document: filename,
-      expires_at: c.expires_at || defaultExpiry,
-      status: 'active',
-      created_at: now,
-    }));
+    const newFacts: Fact[] = candidates.map((c, idx) => {
+      const claimText =
+        typeof c.claim === 'string' && c.claim.trim().length > 0
+          ? c.claim.trim()
+          : typeof c.fact_value === 'string' && c.fact_value.trim().length > 0
+          ? c.fact_value.trim()
+          : c.fact_title;
+      return {
+        id: `fact-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+        brand_id: targetOrg,
+        org_id: targetOrg,
+        source_guideline_id: guidelineId,
+        fact_title: c.fact_title,
+        fact_value: c.fact_value || claimText,
+        claim: claimText,
+        category: c.category || 'Verified Fact',
+        source_document: filename,
+        notes: c.notes,
+        expires_at: c.expires_at || defaultExpiry,
+        status: 'active',
+        created_at: now,
+      };
+    });
 
     if (isMongoConfigured()) {
       try {

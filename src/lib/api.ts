@@ -81,8 +81,22 @@ class ApiClient {
     });
   }
 
-  public async extractRules(guidelineId: string): Promise<{ success: boolean; rules: Rule[]; extractedCount: number; guideline: Guideline }> {
-    return this.request<{ success: boolean; rules: Rule[]; extractedCount: number; guideline: Guideline }>(
+  public async extractRules(guidelineId: string): Promise<{
+    success: boolean;
+    rules: Rule[];
+    extractedCount: number;
+    guideline: Guideline;
+    brand?: Brand;
+    facts?: Fact[];
+  }> {
+    return this.request<{
+      success: boolean;
+      rules: Rule[];
+      extractedCount: number;
+      guideline: Guideline;
+      brand?: Brand;
+      facts?: Fact[];
+    }>(
       `/api/guidelines/${guidelineId}/extract`,
       { method: 'POST' }
     );
